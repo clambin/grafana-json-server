@@ -1,0 +1,35 @@
+{
+  "type": "table",
+  "columns": [
+    {
+      "text": "Time",
+      "type": "time"
+    },
+    {
+      "text": "Label",
+      "type": "string"
+    },
+    {
+      "text": "Series A",
+      "type": "number"
+    },
+    {
+      "text": "Series B",
+      "type": "number"
+    }
+  ],
+  "rows": [
+    [
+      "2020-01-01T00:00:00Z",
+      "foo",
+      42,
+      64.5
+    ],
+    [
+      "2020-01-01T00:01:00Z",
+      "bar",
+      43,
+      100
+    ]
+  ]
+}

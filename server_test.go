@@ -148,7 +148,11 @@ func TestServer_Variable(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithVariable("foo", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
 			return []grafanaJSONServer.Variable{{Text: "Foo", Value: "foo"}, {Text: "Bar", Value: "bar"}}, nil
-		}))
+		}),
+		grafanaJSONServer.WithVariable("fubar", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
+			return nil, errors.New("failed")
+		}),
+	)
 
 	testCases := []struct {
 		name           string
@@ -168,6 +172,11 @@ func TestServer_Variable(t *testing.T) {
 			request:        `{ "payload": { "target": "bar" } }`,
 			wantStatusCode: http.StatusOK,
 			want:           "[]\n",
+		},
+		{
+			name:           "failure",
+			request:        `{ "payload": { "target": "fubar" } }`,
+			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
 			name:           "invalid",

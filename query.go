@@ -1,22 +1,27 @@
 package grafana_json_server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
 )
 
+// QueryFunc is the function signature of the metric's Query function, provided to WithMetric.
+type QueryFunc func(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
+
+// The QueryRequest structure is the query request from Grafana to the data source.
 type QueryRequest struct {
 	App        string               `json:"app"`
 	Timezone   string               `json:"timezone"`
 	StartTime  int64                `json:"startTime"`
 	Interval   string               `json:"interval"`
 	IntervalMs int                  `json:"intervalMs"`
-	PanelId    any                  `json:"panelId"`
+	PanelID    any                  `json:"panelId"`
 	Targets    []QueryRequestTarget `json:"targets"`
 	Range      Range                `json:"range"`
-	RequestId  string               `json:"requestId"`
+	RequestID  string               `json:"requestId"`
 	RangeRaw   struct {
 		From string `json:"from"`
 		To   string `json:"to"`
@@ -27,11 +32,14 @@ type QueryRequest struct {
 	AdhocFilters  []interface{}   `json:"adhocFilters"`
 }
 
+// QueryRequestTarget is one target in the QueryRequest structure. The main interesting fields as the Target, which is
+// the Metric's name, and the Payload, which contains all selection options in any payload options. Use GetPayload to
+// unmarshal the Payload into a Go structure.
 type QueryRequestTarget struct {
-	RefId      string `json:"refId"`
+	RefID      string `json:"refId"`
 	Datasource struct {
 		Type string `json:"type"`
-		Uid  string `json:"uid"`
+		UID  string `json:"uid"`
 	} `json:"datasource"`
 	EditorMode string          `json:"editorMode"`
 	Payload    json.RawMessage `json:"payload"`
@@ -40,6 +48,7 @@ type QueryRequestTarget struct {
 	Type       string          `json:"type"` // TODO: is this really present?
 }
 
+// Range is the time range of the QueryRequest.
 type Range struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
@@ -49,6 +58,7 @@ type Range struct {
 	} `json:"raw"`
 }
 
+// GetPayload unmarshals the target's raw payload into a provided payload.
 func (r QueryRequest) GetPayload(target string, payload any) error {
 	for _, t := range r.Targets {
 		if t.Target == target {
@@ -61,34 +71,41 @@ func (r QueryRequest) GetPayload(target string, payload any) error {
 	return errors.New("target not found")
 }
 
+// A ScopedVar holds the value of a dashboard variable and is sent to the server as part of the QueryRequest.
 type ScopedVar[T any] struct {
 	Selected bool
 	Text     string
 	Value    T
 }
 
+// GetScopedVars unmarshals all variables in a QueryRequest into a Go structure. The vars variable should be struct
+// of ScopedVar structs, matching the type of the variable. E.g. a multi-select variable should be represented by
+// a ScopedVar[[]string].
 func (r QueryRequest) GetScopedVars(vars any) error {
 	return json.Unmarshal(r.ScopedVars, vars)
 }
 
+// QueryResponse is the output of the query function.  Both TimeSeriesResponse and TableResponse implement this interface.
 type QueryResponse interface {
 	json.Marshaler
 }
 
 var _ QueryResponse = TimeSeriesResponse{}
 
+// TimeSeriesResponse is the response to a query as a time series. Target should match the Target of the received request.
 type TimeSeriesResponse struct {
 	Target     string      `json:"target"`
 	DataPoints []DataPoint `json:"datapoints"`
 }
 
+// MarshalJSON converts a TimeSeriesResponse to JSON.
 func (r TimeSeriesResponse) MarshalJSON() ([]byte, error) {
 	type r2 TimeSeriesResponse
 	v2 := r2(r)
 	return json.Marshal(v2)
 }
 
-// DataPoint contains one entry returned by a Query.
+// DataPoint contains one entry of a TimeSeriesResponse.
 type DataPoint struct {
 	Timestamp time.Time
 	Value     float64
@@ -105,13 +122,12 @@ func (d DataPoint) MarshalJSON() ([]byte, error) {
 
 var _ QueryResponse = TableResponse{}
 
-// TableResponse is returned by a TableQuery, i.e. a slice of Column structures.
+// TableResponse is returned by a table query, i.e. a slice of Column structures.
 type TableResponse struct {
-	Target  string
 	Columns []Column
 }
 
-// Column is a column returned by a TableQuery.  Text holds the column's header,
+// Column is a column returned by a table query.  Text holds the column's header,
 // Data holds the slice of values and should be a TimeColumn, a StringColumn
 // or a NumberColumn.
 type Column struct {
@@ -125,7 +141,7 @@ type TimeColumn []time.Time
 // StringColumn holds a slice of string values (one per row).
 type StringColumn []string
 
-// NumberColumn holds a slice of number values (one per row).
+// NumberColumn holds a slice of float64 values (one per row).
 type NumberColumn []float64
 
 type tableResponse struct {

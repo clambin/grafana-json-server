@@ -2,25 +2,29 @@ package grafana_json_server
 
 import "golang.org/x/exp/slog"
 
+// Option configures a Server.
 type Option func(*Server)
 
+// WithLogger logs all requests to the server.  Only slog is supported as a logger.
 func WithLogger(l *slog.Logger) Option {
 	return func(s *Server) {
 		s.logger = l
 	}
 }
 
-func WithMetric(m Metric, handler QueryHandlerFunc, payloadOption MetricPayloadOptionFunc) Option {
+// WithMetric adds a new metric to the server. See Metric for more configuration options for a metric.
+func WithMetric(m Metric, query QueryFunc, payloadOption MetricPayloadOptionFunc) Option {
 	return func(s *Server) {
-		s.handlers[m.Value] = Handler{
-			Metric:              m,
-			MetricPayloadOption: payloadOption,
-			QueryHandler:        handler,
+		s.handlers[m.Value] = handler{
+			metric:              m,
+			metricPayloadOption: payloadOption,
+			queryHandler:        query,
 		}
 	}
 }
 
-func WithVariable(name string, v []Variable) Option {
+// WithVariable adds a new dashboard variable to the server.
+func WithVariable(name string, v VariableFunc) Option {
 	return func(s *Server) {
 		s.variables[name] = v
 	}

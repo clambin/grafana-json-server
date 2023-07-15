@@ -1,7 +1,6 @@
 package grafana_json_server
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/clambin/go-common/httpserver/middleware"
 	"github.com/go-chi/chi/v5"
@@ -10,25 +9,24 @@ import (
 	"net/http"
 )
 
+// The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	handlers  map[string]Handler
-	variables map[string][]Variable
+	handlers  map[string]handler
+	variables map[string]VariableFunc
 	logger    *slog.Logger
 }
 
-type QueryHandlerFunc func(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
-type MetricPayloadOptionFunc func(MetricPayloadOptionsRequest) ([]MetricPayloadOption, error)
-
-type Handler struct {
-	Metric              Metric
-	MetricPayloadOption MetricPayloadOptionFunc
-	QueryHandler        QueryHandlerFunc
+type handler struct {
+	metric              Metric
+	metricPayloadOption MetricPayloadOptionFunc
+	queryHandler        QueryFunc
 }
 
+// NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) http.Handler {
 	s := &Server{
-		handlers:  make(map[string]Handler),
-		variables: make(map[string][]Variable),
+		handlers:  make(map[string]handler),
+		variables: make(map[string]VariableFunc),
 		logger:    slog.Default(),
 	}
 
@@ -54,7 +52,7 @@ func createRouter(s *Server) http.Handler {
 }
 
 func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
-	var queryRequest MetricRequest
+	var queryRequest metricRequest
 	err := json.NewDecoder(r.Body).Decode(&queryRequest)
 	if err != nil {
 		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
@@ -62,9 +60,9 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metrics := make([]Metric, 0)
-	for _, handler := range s.handlers {
-		if queryRequest.Metric == "" || queryRequest.Metric == handler.Metric.Value {
-			metrics = append(metrics, handler.Metric)
+	for _, h := range s.handlers {
+		if queryRequest.Metric == "" || queryRequest.Metric == h.metric.Value {
+			metrics = append(metrics, h.metric)
 		}
 	}
 
@@ -86,7 +84,7 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	options, err := h.MetricPayloadOption(req)
+	options, err := h.metricPayloadOption(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -95,15 +93,20 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
-	var request variableRequest
+	var request VariableRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	variables, ok := s.variables[string(request.Target)]
-	if !ok {
-		variables = make([]Variable, 0)
+	variables := make([]Variable, 0)
+	variableFunc, ok := s.variables[string(request.Target)]
+	if ok && variableFunc != nil {
+		var err error
+		if variables, err = variableFunc(request); err != nil {
+			http.Error(w, "variables: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	_ = json.NewEncoder(w).Encode(variables)
@@ -123,7 +126,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 			s.logger.Warn("invalid query target", "target", t)
 			continue
 		}
-		resp, err := h.QueryHandler(req.Context(), t.Target, queryRequest)
+		resp, err := h.queryHandler(req.Context(), t.Target, queryRequest)
 		if err != nil {
 			s.logger.Error("query failed", "err", err)
 			continue
@@ -134,8 +137,8 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 }
 
 /*
-func requestLogger(logger *slog.Logger) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
+func requestLogger(logger *slog.Logger) func(next http.handler) http.handler {
+	return func(next http.handler) http.handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var reqBody bytes.Buffer
 			r2 := io.TeeReader(r.Body, &reqBody)

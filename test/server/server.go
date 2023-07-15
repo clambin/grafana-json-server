@@ -48,17 +48,17 @@ func main() {
 		Value: "bar",
 	}
 
-	query0variables := []grafanaJSONServer.Variable{
-		{Text: "Label 1", Value: "Value1"},
-		{Text: "Label 2", Value: "Value2"},
-		{Text: "Label 3", Value: "Value3"},
-	}
-
 	r := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithLogger(slog.Default()),
 		grafanaJSONServer.WithMetric(m1, timeSeriesQuery, getMetricPayloadOptions),
 		grafanaJSONServer.WithMetric(m2, tableQuery, nil),
-		grafanaJSONServer.WithVariable("query0", query0variables),
+		grafanaJSONServer.WithVariable("query0", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
+			return []grafanaJSONServer.Variable{
+				{Text: "Label 1", Value: "Value1"},
+				{Text: "Label 2", Value: "Value2"},
+				{Text: "Label 3", Value: "Value3"},
+			}, nil
+		}),
 	)
 
 	if err := http.ListenAndServe(":8080", r); !errors.Is(err, http.ErrServerClosed) {
@@ -71,6 +71,7 @@ func getMetricPayloadOptions(req grafanaJSONServer.MetricPayloadOptionsRequest) 
 		Option1 string
 		Option2 []string
 	}
+	slog.Info("getMetricPayloadOptions called", "metric", req.Metric, "name", req.Name)
 	if err := req.GetPayload(&payload); err != nil {
 		slog.Error("failed", "err", err)
 		return nil, err
@@ -79,6 +80,12 @@ func getMetricPayloadOptions(req grafanaJSONServer.MetricPayloadOptionsRequest) 
 }
 
 func timeSeriesQuery(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+	var payload struct {
+		Option1 string
+		Option2 []string
+	}
+	_ = req.GetPayload(target, &payload)
+
 	resp := grafanaJSONServer.TimeSeriesResponse{Target: target}
 	period := req.MaxDataPoints / 10
 	timestamp := req.Range.From
@@ -116,7 +123,6 @@ func tableQuery(_ context.Context, target string, req grafanaJSONServer.QueryReq
 	}
 
 	return grafanaJSONServer.TableResponse{
-		Target: "bar",
 		Columns: []grafanaJSONServer.Column{
 			{Text: "time", Data: timestamps},
 			{Text: "bar", Data: values},

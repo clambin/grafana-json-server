@@ -146,11 +146,9 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 
 func TestServer_Variable(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithVariable("foo", []grafanaJSONServer.Variable{
-			{Text: "Foo", Value: "foo"},
-			{Text: "Bar", Value: "bar"},
-		}),
-	)
+		grafanaJSONServer.WithVariable("foo", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
+			return []grafanaJSONServer.Variable{{Text: "Foo", Value: "foo"}, {Text: "Bar", Value: "bar"}}, nil
+		}))
 
 	testCases := []struct {
 		name           string

@@ -10,4 +10,4 @@ Basic Go implementation of simPod's Grafana JSON datasource.
 
 Works with:
 
-* [Grafana JSON Datasource](https://github.com/simPod/GrafanaJsonDatasource)
+* [Grafana JSON Datasource](https://github.com/simPod/GrafanaJsonDatasource) v0.6.3

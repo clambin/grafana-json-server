@@ -45,7 +45,7 @@ A time series query returns a TimeSeriesResponse:
 		}, nil
 	}
 
-# Writing table queries:
+# Writing table queries
 
 A table query returns a TableResponse:
 

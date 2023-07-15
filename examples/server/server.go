@@ -5,8 +5,10 @@ import (
 	"errors"
 	grafanaJSONServer "github.com/clambin/grafana-json-server"
 	"golang.org/x/exp/slog"
+	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -54,9 +56,9 @@ func main() {
 		grafanaJSONServer.WithMetric(m2, tableQuery, nil),
 		grafanaJSONServer.WithVariable("query0", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
 			return []grafanaJSONServer.Variable{
-				{Text: "Label 1", Value: "Value1"},
-				{Text: "Label 2", Value: "Value2"},
-				{Text: "Label 3", Value: "Value3"},
+				{Text: "1", Value: "1"},
+				{Text: "5", Value: "5"},
+				{Text: "10", Value: "10"},
 			}, nil
 		}),
 	)
@@ -80,23 +82,15 @@ func getMetricPayloadOptions(req grafanaJSONServer.MetricPayloadOptionsRequest) 
 }
 
 func timeSeriesQuery(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-	var payload struct {
-		Option1 string
-		Option2 []string
-	}
-	_ = req.GetPayload(target, &payload)
-
+	scale, _ := getScale(req)
 	resp := grafanaJSONServer.TimeSeriesResponse{Target: target}
-	period := req.MaxDataPoints / 10
+	period := float64(req.MaxDataPoints) / scale
 	timestamp := req.Range.From
-	c := 0
-	if target == "bar" {
-		c = period / 2
-	}
+	var c float64
 	for timestamp.Before(req.Range.To) {
 		resp.DataPoints = append(resp.DataPoints, grafanaJSONServer.DataPoint{
 			Timestamp: timestamp,
-			Value:     float64(c % period),
+			Value:     100 * math.Cos(c*2*math.Pi/period),
 		})
 		c++
 		timestamp = timestamp.Add(time.Duration(req.IntervalMs) * time.Millisecond)
@@ -105,19 +99,17 @@ func timeSeriesQuery(_ context.Context, target string, req grafanaJSONServer.Que
 	return resp, nil
 }
 
-func tableQuery(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+func tableQuery(_ context.Context, _ string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 	var timestamps grafanaJSONServer.TimeColumn
 	var values grafanaJSONServer.NumberColumn
 
-	period := req.MaxDataPoints / 10
+	scale, _ := getScale(req)
+	period := float64(req.MaxDataPoints) / scale
 	timestamp := req.Range.From
-	c := 0
-	if target == "bar" {
-		c = period / 2
-	}
+	var c float64
 	for timestamp.Before(req.Range.To) {
 		timestamps = append(timestamps, timestamp)
-		values = append(values, float64(c%period))
+		values = append(values, 100*math.Sin(c*2*math.Pi/period))
 		c++
 		timestamp = timestamp.Add(time.Duration(req.IntervalMs) * time.Millisecond)
 	}
@@ -128,4 +120,19 @@ func tableQuery(_ context.Context, target string, req grafanaJSONServer.QueryReq
 			{Text: "bar", Data: values},
 		},
 	}, nil
+}
+
+func getScale(req grafanaJSONServer.QueryRequest) (float64, error) {
+	var scopedVars struct {
+		Query0 grafanaJSONServer.ScopedVar[string]
+	}
+	if err := req.GetScopedVars(&scopedVars); err != nil {
+		return 0, err
+	}
+
+	scale, err := strconv.Atoi(scopedVars.Query0.Value)
+	if err != nil {
+		return 0, err
+	}
+	return float64(scale), nil
 }

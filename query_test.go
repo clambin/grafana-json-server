@@ -49,14 +49,13 @@ func TestQueryRequest_Unmarshal(t *testing.T) {
 
 func TestQueryResponse_Marshal(t *testing.T) {
 	tests := []struct {
-		name     string
-		pass     bool
-		response grafanaJSONServer.QueryResponse
+		name    string
+		payload grafanaJSONServer.QueryResponse
+		wantErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "timeseries",
-			pass: true,
-			response: grafanaJSONServer.TimeSeriesResponse{
+			payload: grafanaJSONServer.TimeSeriesResponse{
 				Target: "A",
 				DataPoints: []grafanaJSONServer.DataPoint{
 					{Value: 100, Timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
@@ -64,11 +63,11 @@ func TestQueryResponse_Marshal(t *testing.T) {
 					{Value: 102, Timestamp: time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC)},
 				},
 			},
+			wantErr: assert.NoError,
 		},
 		{
 			name: "table",
-			pass: true,
-			response: grafanaJSONServer.TableResponse{
+			payload: grafanaJSONServer.TableResponse{
 				Columns: []grafanaJSONServer.Column{
 					{Text: "Time", Data: grafanaJSONServer.TimeColumn{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC)}},
 					{Text: "Label", Data: grafanaJSONServer.StringColumn{"foo", "bar"}},
@@ -76,16 +75,16 @@ func TestQueryResponse_Marshal(t *testing.T) {
 					{Text: "Series B", Data: grafanaJSONServer.NumberColumn{64.5, 100.0}},
 				},
 			},
+			wantErr: assert.NoError,
 		},
 		{
-			name:     "combined",
-			pass:     true,
-			response: makeCombinedQueryResponse(),
+			name:    "combined",
+			payload: makeCombinedQueryResponse(),
+			wantErr: assert.NoError,
 		},
 		{
 			name: "invalid",
-			pass: false,
-			response: grafanaJSONServer.TableResponse{
+			payload: grafanaJSONServer.TableResponse{
 				Columns: []grafanaJSONServer.Column{
 					{Text: "Time", Data: grafanaJSONServer.TimeColumn{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC)}},
 					{Text: "Label", Data: grafanaJSONServer.StringColumn{"foo"}},
@@ -93,6 +92,7 @@ func TestQueryResponse_Marshal(t *testing.T) {
 					{Text: "Series B", Data: grafanaJSONServer.NumberColumn{64.5, 100.0, 105.0}},
 				},
 			},
+			wantErr: assert.Error,
 		},
 	}
 
@@ -102,14 +102,13 @@ func TestQueryResponse_Marshal(t *testing.T) {
 			w := bufio.NewWriter(&b)
 			enc := json.NewEncoder(w)
 			enc.SetIndent("", "  ")
-			err := enc.Encode(tt.response)
+			err := enc.Encode(tt.payload)
 
-			if !tt.pass {
-				assert.Error(t, err)
+			tt.wantErr(t, err)
+
+			if err != nil {
 				return
 			}
-
-			require.NoError(t, err)
 			_ = w.Flush()
 
 			gp := filepath.Join("testdata", strings.ToLower(t.Name())+".golden")

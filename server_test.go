@@ -236,6 +236,18 @@ func TestServer_Query(t *testing.T) {
 			},
 			nil,
 		),
+		grafanaJSONServer.WithMetric(
+			grafanaJSONServer.Metric{
+				Value: "fubar2",
+			},
+			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+				return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
+					{Text: "time", Data: grafanaJSONServer.TimeColumn{time.Now()}},
+					{Text: "value", Data: grafanaJSONServer.NumberColumn{1, 2, 3}},
+				}}, nil
+			},
+			nil,
+		),
 	)
 
 	testCases := []struct {
@@ -271,6 +283,13 @@ func TestServer_Query(t *testing.T) {
 			queryRequest:   `{ "targets": [ { "target": "fubar" } ] }`,
 			wantStatusCode: http.StatusOK,
 			want: `[]
+`,
+		},
+		{
+			name:           "invalid response",
+			queryRequest:   `{ "targets": [ { "target": "fubar2" } ] }`,
+			wantStatusCode: http.StatusInternalServerError,
+			want: `query: json: error calling MarshalJSON for type grafana_json_server.QueryResponse: error building table query output: all columns must have the same number of rows
 `,
 		},
 		{

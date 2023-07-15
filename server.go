@@ -133,7 +133,10 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 		}
 		responses = append(responses, resp)
 	}
-	_ = json.NewEncoder(w).Encode(responses)
+	err := json.NewEncoder(w).Encode(responses)
+	if err != nil {
+		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
+	}
 }
 
 /*

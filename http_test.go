@@ -89,18 +89,59 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 					{Label: "Bar", Value: "bar"},
 				}, nil
 			},
-		))
+		),
+		grafanaJSONServer.WithMetric(
+			grafanaJSONServer.Metric{Value: "fubar"},
+			nil,
+			func(_ grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
+				return nil, errors.New("failing")
+			},
+		),
+	)
 
-	const metricsRequest = `{ "metric": "foo" }`
-	const metricResponse = `[{"label":"Foo","value":"foo"},{"label":"Bar","value":"bar"}]
-`
+	testCases := []struct {
+		name           string
+		request        string
+		wantStatusCode int
+		want           string
+	}{
+		{
+			name:           "valid",
+			request:        `{ "metric": "foo" }`,
+			wantStatusCode: http.StatusOK,
+			want: `[{"label":"Foo","value":"foo"},{"label":"Bar","value":"bar"}]
+`,
+		},
+		{
+			name:           "missing",
+			request:        `{ "metric": "bar" }`,
+			wantStatusCode: http.StatusOK,
+			want:           "[]\n",
+		},
+		{
+			name:           "failing",
+			request:        `{ "metric": "fubar" }`,
+			wantStatusCode: http.StatusInternalServerError,
+		},
+		{
+			name:           "invalid",
+			request:        `not a json object`,
+			wantStatusCode: http.StatusBadRequest,
+		},
+	}
 
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "http://localhost/metric-payload-options", io.NopCloser(bytes.NewBuffer([]byte(metricsRequest))))
-	h.ServeHTTP(w, req)
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPost, "http://localhost/metric-payload-options", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))
+			h.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, metricResponse, w.Body.String())
+			assert.Equal(t, tt.wantStatusCode, w.Code)
+			if w.Code == http.StatusOK {
+				assert.Equal(t, tt.want, w.Body.String())
+			}
+		})
+	}
 }
 
 func TestServer_Variable(t *testing.T) {
@@ -111,16 +152,44 @@ func TestServer_Variable(t *testing.T) {
 		}),
 	)
 
-	const metricsRequest = `{ "payload": { "target": "foo" } }`
-	const metricResponse = `[{"__text":"Foo","__value":"foo"},{"__text":"Bar","__value":"bar"}]
-`
+	testCases := []struct {
+		name           string
+		request        string
+		wantStatusCode int
+		want           string
+	}{
+		{
+			name:           "valid",
+			request:        `{ "payload": { "target": "foo" } }`,
+			wantStatusCode: http.StatusOK,
+			want: `[{"__text":"Foo","__value":"foo"},{"__text":"Bar","__value":"bar"}]
+`,
+		},
+		{
+			name:           "missing",
+			request:        `{ "payload": { "target": "bar" } }`,
+			wantStatusCode: http.StatusOK,
+			want:           "[]\n",
+		},
+		{
+			name:           "invalid",
+			request:        `not a json object`,
+			wantStatusCode: http.StatusBadRequest,
+		},
+	}
 
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "http://localhost/variable", io.NopCloser(bytes.NewBuffer([]byte(metricsRequest))))
-	h.ServeHTTP(w, req)
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPost, "http://localhost/variable", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))
+			h.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, metricResponse, w.Body.String())
+			assert.Equal(t, tt.wantStatusCode, w.Code)
+			if w.Code == http.StatusOK {
+				assert.Equal(t, tt.want, w.Body.String())
+			}
+		})
+	}
 }
 
 func TestServer_Query(t *testing.T) {
@@ -217,4 +286,20 @@ func TestServer_Query(t *testing.T) {
 
 		})
 	}
+}
+
+func TestServer_Tags(t *testing.T) {
+	s := grafanaJSONServer.NewServer()
+
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest(http.MethodPost, "http://localhost/tag-keys", nil)
+
+	s.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusNotImplemented, w.Code)
+
+	w = httptest.NewRecorder()
+	r, _ = http.NewRequest(http.MethodPost, "http://localhost/tag-values", nil)
+
+	s.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusNotImplemented, w.Code)
 }

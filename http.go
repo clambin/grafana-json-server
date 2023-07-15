@@ -3,7 +3,6 @@ package grafana_json_server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/clambin/go-common/httpserver/middleware"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
@@ -48,8 +47,8 @@ func createRouter(s *Server) http.Handler {
 	r.Post("/metrics", s.metrics)
 	r.Post("/metric-payload-options", s.metricsPayloadOptions)
 	r.Post("/variable", s.variable)
-	r.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	r.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+	r.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
 	r.Post("/query", s.query)
 	return r
 }
@@ -58,7 +57,7 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 	var queryRequest MetricRequest
 	err := json.NewDecoder(r.Body).Decode(&queryRequest)
 	if err != nil {
-		http.Error(w, fmt.Errorf("invalid request: %w", err).Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -76,13 +75,14 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 	var req MetricPayloadOptionsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Errorf("invalid request: %w", err).Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	h, ok := s.handlers[req.Metric]
 	if !ok {
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]\n"))
 		return
 	}
 
@@ -97,22 +97,22 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 	var request variableRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, fmt.Errorf("invalid request: %w", err).Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	variables, _ := s.variables[string(request.Target)]
-
-	if err := json.NewEncoder(w).Encode(variables); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	variables, ok := s.variables[string(request.Target)]
+	if !ok {
+		variables = make([]Variable, 0)
 	}
+
+	_ = json.NewEncoder(w).Encode(variables)
 }
 
 func (s Server) query(w http.ResponseWriter, req *http.Request) {
 	var queryRequest QueryRequest
 	if err := json.NewDecoder(req.Body).Decode(&queryRequest); err != nil {
-		http.Error(w, fmt.Errorf("invalid request: %w", err).Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -130,10 +130,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 		}
 		responses = append(responses, resp)
 	}
-	if err := json.NewEncoder(w).Encode(responses); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	_ = json.NewEncoder(w).Encode(responses)
 }
 
 /*

@@ -5,15 +5,18 @@ import (
 	"github.com/clambin/go-common/httpserver/middleware"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slog"
 	"net/http"
 )
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	handlers  map[string]handler
-	variables map[string]VariableFunc
-	logger    *slog.Logger
+	handlers          map[string]handler
+	variables         map[string]VariableFunc
+	logger            *slog.Logger
+	prometheusMetrics *prometheusMetrics
+	chi.Router
 }
 
 type handler struct {
@@ -23,32 +26,31 @@ type handler struct {
 }
 
 // NewServer returns a new JSON API server, configured as per the provided Option items.
-func NewServer(options ...Option) http.Handler {
+func NewServer(options ...Option) *Server {
 	s := &Server{
 		handlers:  make(map[string]handler),
 		variables: make(map[string]VariableFunc),
 		logger:    slog.Default(),
+		Router:    chi.NewRouter(),
 	}
+
+	s.Router.Use(chiMiddleware.Heartbeat("/"))
 
 	for _, option := range options {
 		option(s)
 	}
 
-	return createRouter(s)
-}
+	s.Router.Group(func(r chi.Router) {
+		r.Use(middleware.Logger(s.logger))
+		r.Post("/metrics", s.metrics)
+		r.Post("/metric-payload-options", s.metricsPayloadOptions)
+		r.Post("/variable", s.variable)
+		r.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+		r.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+		r.Post("/query", s.query)
+	})
 
-func createRouter(s *Server) http.Handler {
-	r := chi.NewMux()
-	r.Use(chiMiddleware.Heartbeat("/"))
-	r.Use(middleware.Logger(s.logger))
-	//r.Use(requestLogger(s.logger))
-	r.Post("/metrics", s.metrics)
-	r.Post("/metric-payload-options", s.metricsPayloadOptions)
-	r.Post("/variable", s.variable)
-	r.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-	r.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-	r.Post("/query", s.query)
-	return r
+	return s
 }
 
 func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
@@ -124,11 +126,28 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 		h, ok := s.handlers[t.Target]
 		if !ok {
 			s.logger.Warn("invalid query target", "target", t)
+			if s.prometheusMetrics != nil {
+				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
+			}
 			continue
 		}
+
+		var timer *prometheus.Timer
+		if s.prometheusMetrics != nil {
+			timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(t.Target))
+		}
+
 		resp, err := h.queryHandler(req.Context(), t.Target, queryRequest)
+
+		if timer != nil {
+			timer.ObserveDuration()
+		}
+
 		if err != nil {
 			s.logger.Error("query failed", "err", err)
+			if s.prometheusMetrics != nil {
+				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
+			}
 			continue
 		}
 		responses = append(responses, resp)
@@ -136,6 +155,18 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 	err := json.NewEncoder(w).Encode(responses)
 	if err != nil {
 		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s Server) Describe(descs chan<- *prometheus.Desc) {
+	if s.prometheusMetrics != nil {
+		s.prometheusMetrics.Describe(descs)
+	}
+}
+
+func (s Server) Collect(metrics chan<- prometheus.Metric) {
+	if s.prometheusMetrics != nil {
+		s.prometheusMetrics.Collect(metrics)
 	}
 }
 

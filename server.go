@@ -12,26 +12,20 @@ import (
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	handlers          map[string]handler
+	dataSources       map[string]DataSource
 	variables         map[string]VariableFunc
 	logger            *slog.Logger
 	prometheusMetrics *prometheusMetrics
 	chi.Router
 }
 
-type handler struct {
-	metric              Metric
-	metricPayloadOption MetricPayloadOptionFunc
-	queryHandler        QueryFunc
-}
-
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := &Server{
-		handlers:  make(map[string]handler),
-		variables: make(map[string]VariableFunc),
-		logger:    slog.Default(),
-		Router:    chi.NewRouter(),
+		dataSources: make(map[string]DataSource),
+		variables:   make(map[string]VariableFunc),
+		logger:      slog.Default(),
+		Router:      chi.NewRouter(),
 	}
 
 	s.Router.Use(chiMiddleware.Heartbeat("/"))
@@ -61,14 +55,14 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: we could cache metrics so we only need to build it once
 	metrics := make([]Metric, 0)
-	for _, h := range s.handlers {
-		if queryRequest.Metric == "" || queryRequest.Metric == h.metric.Value {
-			metrics = append(metrics, h.metric)
+	for _, dataSource := range s.dataSources {
+		if queryRequest.Metric == "" || queryRequest.Metric == dataSource.Metric.Value {
+			metrics = append(metrics, dataSource.Metric)
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(metrics)
 }
 
@@ -79,19 +73,68 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h, ok := s.handlers[req.Metric]
+	dataSource, ok := s.dataSources[req.Metric]
 	if !ok {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("[]\n"))
 		return
 	}
 
-	options, err := h.metricPayloadOption(req)
+	if dataSource.MetricPayloadOptionFunc == nil {
+		http.Error(w, "invalid request: target does not have a metric payload option function", http.StatusInternalServerError)
+		return
+	}
+
+	options, err := dataSource.MetricPayloadOptionFunc(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	_ = json.NewEncoder(w).Encode(options)
+}
+
+func (s Server) query(w http.ResponseWriter, req *http.Request) {
+	var queryRequest QueryRequest
+	if err := json.NewDecoder(req.Body).Decode(&queryRequest); err != nil {
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	responses := make([]QueryResponse, 0)
+	for _, t := range queryRequest.Targets {
+		dataSource, ok := s.dataSources[t.Target]
+		if !ok {
+			s.logger.Warn("invalid query target", "target", t)
+			if s.prometheusMetrics != nil {
+				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
+			}
+			continue
+		}
+
+		var timer *prometheus.Timer
+		if s.prometheusMetrics != nil {
+			timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(t.Target))
+		}
+
+		resp, err := dataSource.Query.Query(req.Context(), t.Target, queryRequest)
+
+		if timer != nil {
+			timer.ObserveDuration()
+		}
+
+		if err != nil {
+			s.logger.Error("query failed", "err", err)
+			if s.prometheusMetrics != nil {
+				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
+			}
+			continue
+		}
+		responses = append(responses, resp)
+	}
+	err := json.NewEncoder(w).Encode(responses)
+	if err != nil {
+		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
@@ -114,50 +157,6 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(variables)
 }
 
-func (s Server) query(w http.ResponseWriter, req *http.Request) {
-	var queryRequest QueryRequest
-	if err := json.NewDecoder(req.Body).Decode(&queryRequest); err != nil {
-		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	responses := make([]QueryResponse, 0)
-	for _, t := range queryRequest.Targets {
-		h, ok := s.handlers[t.Target]
-		if !ok {
-			s.logger.Warn("invalid query target", "target", t)
-			if s.prometheusMetrics != nil {
-				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
-			}
-			continue
-		}
-
-		var timer *prometheus.Timer
-		if s.prometheusMetrics != nil {
-			timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(t.Target))
-		}
-
-		resp, err := h.queryHandler(req.Context(), t.Target, queryRequest)
-
-		if timer != nil {
-			timer.ObserveDuration()
-		}
-
-		if err != nil {
-			s.logger.Error("query failed", "err", err)
-			if s.prometheusMetrics != nil {
-				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
-			}
-			continue
-		}
-		responses = append(responses, resp)
-	}
-	err := json.NewEncoder(w).Encode(responses)
-	if err != nil {
-		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func (s Server) Describe(descs chan<- *prometheus.Desc) {
 	if s.prometheusMetrics != nil {
 		s.prometheusMetrics.Describe(descs)
@@ -171,8 +170,8 @@ func (s Server) Collect(metrics chan<- prometheus.Metric) {
 }
 
 /*
-func requestLogger(logger *slog.Logger) func(next http.handler) http.handler {
-	return func(next http.handler) http.handler {
+func requestLogger(logger *slog.Logger) func(next http.DataSource) http.DataSource {
+	return func(next http.DataSource) http.DataSource {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var reqBody bytes.Buffer
 			r2 := io.TeeReader(r.Body, &reqBody)

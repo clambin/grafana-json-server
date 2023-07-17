@@ -15,15 +15,20 @@ func WithLogger(l *slog.Logger) Option {
 	}
 }
 
+// WithDatasource adds a new data source to the server.
+func WithDatasource(dataSource DataSource) Option {
+	return func(s *Server) {
+		s.dataSources[dataSource.Metric.Value] = dataSource
+	}
+}
+
 // WithMetric adds a new metric to the server. See Metric for more configuration options for a metric.
 func WithMetric(m Metric, query QueryFunc, payloadOption MetricPayloadOptionFunc) Option {
-	return func(s *Server) {
-		s.handlers[m.Value] = handler{
-			metric:              m,
-			metricPayloadOption: payloadOption,
-			queryHandler:        query,
-		}
-	}
+	return WithDatasource(DataSource{
+		Metric:                  m,
+		MetricPayloadOptionFunc: payloadOption,
+		Query:                   query,
+	})
 }
 
 // WithVariable adds a new dashboard variable to the server.

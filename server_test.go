@@ -97,6 +97,11 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 				return nil, errors.New("failing")
 			},
 		),
+		grafanaJSONServer.WithMetric(
+			grafanaJSONServer.Metric{Value: "fubar2"},
+			nil,
+			nil,
+		),
 	)
 
 	testCases := []struct {
@@ -121,6 +126,11 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 		{
 			name:           "failing",
 			request:        `{ "metric": "fubar" }`,
+			wantStatusCode: http.StatusInternalServerError,
+		},
+		{
+			name:           "failing 2",
+			request:        `{ "metric": "fubar2" }`,
 			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
@@ -202,9 +212,7 @@ func TestServer_Variable(t *testing.T) {
 func TestServer_Query(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{
-				Value: "foo",
-			},
+			grafanaJSONServer.Metric{Value: "foo"},
 			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 				return grafanaJSONServer.TimeSeriesResponse{
 					Target: "foo",
@@ -216,9 +224,7 @@ func TestServer_Query(t *testing.T) {
 			nil,
 		),
 		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{
-				Value: "bar",
-			},
+			grafanaJSONServer.Metric{Value: "bar"},
 			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 				return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
 					{Text: "time", Data: grafanaJSONServer.TimeColumn([]time.Time{time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC)})},
@@ -228,18 +234,14 @@ func TestServer_Query(t *testing.T) {
 			nil,
 		),
 		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{
-				Value: "fubar",
-			},
+			grafanaJSONServer.Metric{Value: "fubar"},
 			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 				return nil, errors.New("fubar")
 			},
 			nil,
 		),
 		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{
-				Value: "fubar2",
-			},
+			grafanaJSONServer.Metric{Value: "fubar2"},
 			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 				return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
 					{Text: "time", Data: grafanaJSONServer.TimeColumn{time.Now()}},

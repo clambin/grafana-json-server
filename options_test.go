@@ -105,5 +105,25 @@ namespace_subsystem_json_query_error_count{application="test",target="missing"} 
 namespace_subsystem_json_query_error_count{application="test",target="fubar"} 1
 namespace_subsystem_json_query_error_count{application="test",target="missing"} 1
 `), `namespace_subsystem_json_query_error_count`))
+}
+
+func TestWithDatasource(t *testing.T) {
+	dataSource := grafanaJSONServer.DataSource{
+		Metric: grafanaJSONServer.Metric{Value: "foo"},
+		Query: grafanaJSONServer.QueryFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return grafanaJSONServer.TimeSeriesResponse{
+				Target:     target,
+				DataPoints: []grafanaJSONServer.DataPoint{{Timestamp: time.Date(2023, time.July, 17, 0, 0, 0, 0, time.UTC), Value: 1}},
+			}, nil
+		}),
+	}
+
+	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithDatasource(dataSource))
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(bytes.NewBufferString(`{ "targets": [ { "target": "foo" } ] }`)))
+	s.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, `[{"target":"foo","datapoints":[[1,1689552000000]]}]
+`, w.Body.String())
 
 }

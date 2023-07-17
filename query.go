@@ -1,15 +1,11 @@
 package grafana_json_server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
 )
-
-// QueryFunc is the function signature of the metric's Query function, provided to WithMetric.
-type QueryFunc func(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
 
 // The QueryRequest structure is the query request from Grafana to the data source.
 type QueryRequest struct {

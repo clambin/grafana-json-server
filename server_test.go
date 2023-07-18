@@ -71,6 +71,7 @@ func TestServer_Metrics(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatusCode, w.Code)
 			if w.Code == http.StatusOK {
+				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 				assert.Equal(t, tt.wantResponse, w.Body.String())
 			}
 
@@ -148,6 +149,7 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatusCode, w.Code)
 			if w.Code == http.StatusOK {
+				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 				assert.Equal(t, tt.want, w.Body.String())
 			}
 		})
@@ -203,6 +205,7 @@ func TestServer_Variable(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatusCode, w.Code)
 			if w.Code == http.StatusOK {
+				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 				assert.Equal(t, tt.want, w.Body.String())
 			}
 		})
@@ -312,6 +315,9 @@ func TestServer_Query(t *testing.T) {
 			assert.Equal(t, tt.wantStatusCode, w.Code)
 			assert.Equal(t, tt.want, w.Body.String())
 
+			if w.Code == http.StatusOK {
+				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+			}
 		})
 	}
 }

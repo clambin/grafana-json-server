@@ -63,6 +63,7 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(metrics)
 }
 
@@ -75,6 +76,7 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 
 	dataSource, ok := s.dataSources[req.Metric]
 	if !ok {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("[]\n"))
 		return
@@ -90,6 +92,7 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(options)
 }
 
@@ -131,6 +134,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 		}
 		responses = append(responses, resp)
 	}
+	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(responses)
 	if err != nil {
 		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
@@ -154,6 +158,7 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(variables)
 }
 

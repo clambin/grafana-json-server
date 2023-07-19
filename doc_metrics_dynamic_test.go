@@ -20,7 +20,7 @@ func Example_metricOptionsDynamic() {
 		},
 	}
 
-	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, metricOptionsDynamicQueryFunc, metricPayloadOptionsFunc))
+	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, grafanaJSONServer.HandlerFunc(metricOptionsDynamicQueryFunc), metricPayloadOptionsFunc))
 	_ = http.ListenAndServe(":8080", s)
 }
 

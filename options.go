@@ -16,20 +16,25 @@ func WithLogger(l *slog.Logger) Option {
 }
 
 // WithMetric adds a new metric to the server. See Metric for more configuration options for a metric.
-func WithMetric(m Metric, query QueryFunc, payloadOption MetricPayloadOptionFunc) Option {
+func WithMetric(m Metric, handler Handler, payloadOption MetricPayloadOptionFunc) Option {
 	return func(s *Server) {
 		s.dataSources[m.Value] = dataSource{
 			Metric:                  m,
 			MetricPayloadOptionFunc: payloadOption,
-			query:                   query,
+			Handler:                 handler,
 		}
 	}
 }
 
-// WithHandlerFunc adds a http.Handler to its http router.
-func WithHandlerFunc(method, path string, handler http.HandlerFunc) Option {
+// WithHandler is a convenience function to create a simple metric (i.e. one without any payload options).
+func WithHandler(target string, handler Handler) Option {
+	return WithMetric(Metric{Value: target}, handler, nil)
+}
+
+// WithHTTPHandler adds a http.Handler to its http router.
+func WithHTTPHandler(method, path string, handler http.Handler) Option {
 	return func(s *Server) {
-		s.Router.MethodFunc(method, path, handler)
+		s.Router.Method(method, path, handler)
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 func Example_basicTableQuery() {
-	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithQuery("metric1", basicTableQueryFunc))
+	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithHandler("metric1", grafanaJSONServer.HandlerFunc(basicTableQueryFunc)))
 	_ = http.ListenAndServe(":8080", s)
 }
 

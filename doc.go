@@ -8,12 +8,12 @@ A metric is the source of data to be sent to Grafana.  In its simplest form, run
 requires creating a server for that metric and starting an HTTP listener:
 
 	s := grafana_json_server.NewServer(
-		grafana_json_server.WithQuery("metric1", queryFunc),
+		grafana_json_server.WithHandler("metric1", query),
 	)
 	_ = http.ListenAndServe(":8080", s)
 
-This starts a JSON API server for a single metric, called 'metric1' and a query function queryFunc, which will generate
-the data for the metric.
+This starts a JSON API server for a single metric, called 'metric1' and a query, which implements the Query interface and
+will generate the data for the metric.
 
 To provide more configuration options for the metric, use WithMetric instead:
 
@@ -23,7 +23,7 @@ To provide more configuration options for the metric, use WithMetric instead:
 	}
 
 	s := grafana_json_server.NewServer(
-		grafana_json_server.WithMetric(metric, queryFunc, nil),
+		grafana_json_server.WithMetric(metric, query, nil),
 	)
 	_ = http.ListenAndServe(":8080", s)
 
@@ -41,7 +41,7 @@ data, use table queries instead.
 
 A time series query returns a TimeSeriesResponse:
 
-	func timeSeriesFunc(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+	func Query(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 		return grafanaJSONServer.TimeSeriesResponse{
 			Target: target,
 			DataPoints: []grafanaJSONServer.DataPoint{
@@ -56,7 +56,7 @@ A time series query returns a TimeSeriesResponse:
 
 A table query returns a TableResponse:
 
-	func tableFunc(_ context.Context, _ string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+	func Query(_ context.Context, _ string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 		return grafanaJSONServer.TableResponse{
 			Columns: []grafanaJSONServer.Column{
 				{Text: "Time", Data: grafanaJSONServer.TimeColumn{
@@ -135,15 +135,15 @@ determine which options you want to present, or if you want to determine valid o
 		},
 	}
 
-	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, metricOptionsDynamicQueryFunc, metricPayloadOptionsFunc))
+	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, metricOptionsDynamicQuery, metricPayloadOptionsFunc))
 
 This creates a single metric, metric1.  The metric has two payload options, option1 and option2. The former has two hardcoded options.
-The latter has no Options configured.  This will call JSON API DataSource to call metricPayloadOptionsFunc to determine which
+The latter has no Options configured.  This will cause the data source plugin to call metricPayloadOptionsFunc to determine which
 options to present.
 
 The following is a basic example of such a MetricPayloadOption function:
 
-		func metricPayloadOptionsFunc(req grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
+	func Query(req grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
 		var payload struct {
 			Option1 string
 			Option2 string

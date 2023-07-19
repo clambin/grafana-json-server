@@ -20,7 +20,7 @@ func TestWithLogger(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{}))
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithLogger(l),
-		grafanaJSONServer.WithQuery("foo", nil),
+		grafanaJSONServer.WithHandler("foo", nil),
 	)
 
 	const metricsRequest = `{ "metric": "foo" }`
@@ -37,9 +37,9 @@ func TestWithLogger(t *testing.T) {
 }
 
 func TestWithHandlerFunc(t *testing.T) {
-	h := grafanaJSONServer.NewServer(grafanaJSONServer.WithHandlerFunc(http.MethodGet, "/extra", func(w http.ResponseWriter, _ *http.Request) {
+	h := grafanaJSONServer.NewServer(grafanaJSONServer.WithHTTPHandler(http.MethodGet, "/extra", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost/extra", nil)
@@ -52,17 +52,17 @@ func TestWithHandlerFunc(t *testing.T) {
 func TestWithPrometheusQueryMetrics(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithPrometheusQueryMetrics("namespace", "subsystem", "test"),
-		grafanaJSONServer.WithQuery("foo", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+		grafanaJSONServer.WithHandler("foo", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 			return grafanaJSONServer.TimeSeriesResponse{
 				Target: target,
 				DataPoints: []grafanaJSONServer.DataPoint{
 					{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: 10},
 				},
 			}, nil
-		}),
-		grafanaJSONServer.WithQuery("fubar", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+		})),
+		grafanaJSONServer.WithHandler("fubar", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 			return nil, errors.New("failed")
-		}),
+		})),
 	)
 
 	w := httptest.NewRecorder()

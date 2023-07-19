@@ -22,7 +22,7 @@ type Server struct {
 type dataSource struct {
 	Metric
 	MetricPayloadOptionFunc
-	query QueryFunc
+	Handler
 }
 
 // NewServer returns a new JSON API server, configured as per the provided Option items.
@@ -131,7 +131,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 			timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(t.Target))
 		}
 
-		resp, err := datasource.query(req.Context(), t.Target, queryRequest)
+		resp, err := datasource.Handler.Query(req.Context(), t.Target, queryRequest)
 
 		if timer != nil {
 			timer.ObserveDuration()
@@ -174,12 +174,14 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(variables)
 }
 
+// Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
 func (s Server) Describe(descs chan<- *prometheus.Desc) {
 	if s.prometheusMetrics != nil {
 		s.prometheusMetrics.Describe(descs)
 	}
 }
 
+// Collect implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
 func (s Server) Collect(metrics chan<- prometheus.Metric) {
 	if s.prometheusMetrics != nil {
 		s.prometheusMetrics.Collect(metrics)

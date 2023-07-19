@@ -25,7 +25,7 @@ func Example_metricOptions() {
 		},
 	}
 
-	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, metricOptionsQueryFunc, nil))
+	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, grafanaJSONServer.HandlerFunc(metricOptionsQueryFunc), nil))
 	_ = http.ListenAndServe(":8080", s)
 }
 

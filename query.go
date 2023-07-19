@@ -8,13 +8,19 @@ import (
 	"time"
 )
 
-// WithQuery is a convenience function to create a simple metric (i.e. one without any payload options).
-func WithQuery(target string, query QueryFunc) Option {
-	return WithMetric(Metric{Value: target}, query, nil)
+// A Handler responds to a query request from the JSON API datasource.
+type Handler interface {
+	Query(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
 }
 
-// The QueryFunc type is the function signature for a Query function to be passed to WithQuery or WithMetric
-type QueryFunc func(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
+// The HandlerFunc type is an adapter to allow the use of an ordinary function as Handler handlers.
+// If f is a function with the appropriate signature, then HandlerFunc(f) is a Handler that calls f.
+type HandlerFunc func(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
+
+// Query calls f(ctx, target, request)
+func (qf HandlerFunc) Query(ctx context.Context, target string, request QueryRequest) (QueryResponse, error) {
+	return qf(ctx, target, request)
+}
 
 // The QueryRequest structure is the query request from Grafana to the data source.
 type QueryRequest struct {

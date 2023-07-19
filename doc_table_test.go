@@ -8,15 +8,7 @@ import (
 )
 
 func Example_basicTableQuery() {
-	metric := grafanaJSONServer.Metric{
-		Label: "My first metric",
-		Value: "metric1",
-	}
-
-	s := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithMetric(metric, basicTableQueryFunc, nil),
-	)
-
+	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithQuery("metric1", basicTableQueryFunc))
 	_ = http.ListenAndServe(":8080", s)
 }
 

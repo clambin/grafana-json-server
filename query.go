@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+// WithQuery is a convenience function to create a simple metric (i.e. one without any payload options).
+func WithQuery(target string, query QueryFunc) Option {
+	return WithDatasource(DataSource{
+		Metric: Metric{Value: target},
+		Query:  query,
+	})
+}
+
 // The QueryRequest structure is the query request from Grafana to the data source.
 type QueryRequest struct {
 	App        string               `json:"app"`

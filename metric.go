@@ -4,12 +4,6 @@ import (
 	"encoding/json"
 )
 
-type metricRequest struct {
-	Metric  string `json:"metric"`
-	Payload struct {
-	} `json:"payload"`
-}
-
 // A Metric represents one data source offered by a JSON API server.
 type Metric struct {
 	// Label is the name of the metric, as shown on the screen.

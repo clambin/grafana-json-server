@@ -48,6 +48,12 @@ func NewServer(options ...Option) *Server {
 }
 
 func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
+	type metricRequest struct {
+		Metric  string `json:"metric"`
+		Payload struct {
+		} `json:"payload"`
+	}
+
 	var queryRequest metricRequest
 	err := json.NewDecoder(r.Body).Decode(&queryRequest)
 	if err != nil {

@@ -20,11 +20,8 @@ func TestWithLogger(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{}))
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithLogger(l),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "foo"},
-			nil,
-			nil,
-		))
+		grafanaJSONServer.WithQuery("foo", nil),
+	)
 
 	const metricsRequest = `{ "metric": "foo" }`
 	const metricResponse = `[{"value":"foo","payloads":null}]
@@ -55,25 +52,17 @@ func TestWithHandlerFunc(t *testing.T) {
 func TestWithPrometheusQueryMetrics(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithPrometheusQueryMetrics("namespace", "subsystem", "test"),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "foo"},
-			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-				return grafanaJSONServer.TimeSeriesResponse{
-					Target: target,
-					DataPoints: []grafanaJSONServer.DataPoint{
-						{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: 10},
-					},
-				}, nil
-			},
-			nil,
-		),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "fubar"},
-			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-				return nil, errors.New("failed")
-			},
-			nil,
-		),
+		grafanaJSONServer.WithQuery("foo", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return grafanaJSONServer.TimeSeriesResponse{
+				Target: target,
+				DataPoints: []grafanaJSONServer.DataPoint{
+					{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: 10},
+				},
+			}, nil
+		}),
+		grafanaJSONServer.WithQuery("fubar", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return nil, errors.New("failed")
+		}),
 	)
 
 	w := httptest.NewRecorder()

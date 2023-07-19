@@ -156,103 +156,31 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 	}
 }
 
-func TestServer_Variable(t *testing.T) {
+func TestServer_WithQuery(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithVariable("foo", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
-			return []grafanaJSONServer.Variable{{Text: "Foo", Value: "foo"}, {Text: "Bar", Value: "bar"}}, nil
+		grafanaJSONServer.WithQuery("foo", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return grafanaJSONServer.TimeSeriesResponse{
+				Target: "foo",
+				DataPoints: []grafanaJSONServer.DataPoint{
+					{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: 10},
+				},
+			}, nil
 		}),
-		grafanaJSONServer.WithVariable("fubar", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
-			return nil, errors.New("failed")
+		grafanaJSONServer.WithQuery("bar", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
+				{Text: "time", Data: grafanaJSONServer.TimeColumn([]time.Time{time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC)})},
+				{Text: "value", Data: grafanaJSONServer.NumberColumn([]float64{10})},
+			}}, nil
 		}),
-	)
-
-	testCases := []struct {
-		name           string
-		request        string
-		wantStatusCode int
-		want           string
-	}{
-		{
-			name:           "valid",
-			request:        `{ "payload": { "target": "foo" } }`,
-			wantStatusCode: http.StatusOK,
-			want: `[{"__text":"Foo","__value":"foo"},{"__text":"Bar","__value":"bar"}]
-`,
-		},
-		{
-			name:           "missing",
-			request:        `{ "payload": { "target": "bar" } }`,
-			wantStatusCode: http.StatusOK,
-			want:           "[]\n",
-		},
-		{
-			name:           "failure",
-			request:        `{ "payload": { "target": "fubar" } }`,
-			wantStatusCode: http.StatusInternalServerError,
-		},
-		{
-			name:           "invalid",
-			request:        `not a json object`,
-			wantStatusCode: http.StatusBadRequest,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodPost, "http://localhost/variable", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))
-			h.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatusCode, w.Code)
-			if w.Code == http.StatusOK {
-				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-				assert.Equal(t, tt.want, w.Body.String())
-			}
-		})
-	}
-}
-
-func TestServer_Query(t *testing.T) {
-	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "foo"},
-			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-				return grafanaJSONServer.TimeSeriesResponse{
-					Target: "foo",
-					DataPoints: []grafanaJSONServer.DataPoint{
-						{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: 10},
-					},
-				}, nil
-			},
-			nil,
-		),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "bar"},
-			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-				return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
-					{Text: "time", Data: grafanaJSONServer.TimeColumn([]time.Time{time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC)})},
-					{Text: "value", Data: grafanaJSONServer.NumberColumn([]float64{10})},
-				}}, nil
-			},
-			nil,
-		),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "fubar"},
-			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-				return nil, errors.New("fubar")
-			},
-			nil,
-		),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "fubar2"},
-			func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-				return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
-					{Text: "time", Data: grafanaJSONServer.TimeColumn{time.Now()}},
-					{Text: "value", Data: grafanaJSONServer.NumberColumn{1, 2, 3}},
-				}}, nil
-			},
-			nil,
-		),
+		grafanaJSONServer.WithQuery("fubar", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return nil, errors.New("fubar")
+		}),
+		grafanaJSONServer.WithQuery("fubar2", func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
+				{Text: "time", Data: grafanaJSONServer.TimeColumn{time.Now()}},
+				{Text: "value", Data: grafanaJSONServer.NumberColumn{1, 2, 3}},
+			}}, nil
+		}),
 	)
 
 	testCases := []struct {

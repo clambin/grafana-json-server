@@ -16,6 +16,8 @@ func WithLogger(l *slog.Logger) Option {
 }
 
 // WithDatasource adds a new data source to the server.
+//
+// Deprecated: use either WithMetric or WithQuery.
 func WithDatasource(dataSource DataSource) Option {
 	return func(s *Server) {
 		s.dataSources[dataSource.Metric.Value] = dataSource
@@ -29,13 +31,6 @@ func WithMetric(m Metric, query QueryFunc, payloadOption MetricPayloadOptionFunc
 		MetricPayloadOptionFunc: payloadOption,
 		Query:                   query,
 	})
-}
-
-// WithVariable adds a new dashboard variable to the server.
-func WithVariable(name string, v VariableFunc) Option {
-	return func(s *Server) {
-		s.variables[name] = v
-	}
 }
 
 // WithHandlerFunc adds a http.Handler to its http router.

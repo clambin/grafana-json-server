@@ -7,6 +7,16 @@ a way of sending JSON-formatted data into Grafana dataframes.
 A metric is the source of data to be sent to Grafana.  In its simplest form, running a JSON API server for a metric
 requires creating a server for that metric and starting an HTTP listener:
 
+	s := grafana_json_server.NewServer(
+		grafana_json_server.WithQuery("metric1", queryFunc),
+	)
+	_ = http.ListenAndServe(":8080", s)
+
+This starts a JSON API server for a single metric, called 'metric1' and a query function queryFunc, which will generate
+the data for the metric.
+
+To provide more configuration options for the metric, use WithMetric instead:
+
 	metric := grafana_json_server.Metric{
 		Label: "My first metric",
 		Value: "metric1",
@@ -16,9 +26,6 @@ requires creating a server for that metric and starting an HTTP listener:
 		grafana_json_server.WithMetric(metric, queryFunc, nil),
 	)
 	_ = http.ListenAndServe(":8080", s)
-
-This starts a JSON API server for a single metric, called 'metric1' and a query function queryFunc, which will generate
-the data for the metric.
 
 # Writing query functions
 
@@ -114,7 +121,7 @@ Since Option is a multi-select option, a slice is expected.
 
 In the previous section, we configured a metric with hard-coded options. If we want to have dynamic options, we use
 the MetricPayloadOption function when creating the metric.  Possible use cases for this could be if runtime conditions
-determine which options you want to present, or if you want to determine possible options based on what other options are selected.
+determine which options you want to present, or if you want to determine valid options based on what other options are selected.
 
 	metric := grafanaJSONServer.Metric{
 		Label: "my advanced metric",
@@ -144,9 +151,9 @@ The following is a basic example of such a MetricPayloadOption function:
 		if err := req.GetPayload(&payload); err != nil {
 			return nil, err
 		}
-		// payload will now contain all selected options across all metric's payloads
 
-		// req.Name tells us for metric payload the function was called
+		// payload will now contain all selected options across all metric's payloads
+		// req.Name tells us for which metric the function was called
 
 		return []grafanaJSONServer.MetricPayloadOption{
 			{Label: "Value 1", Value: "value1"},

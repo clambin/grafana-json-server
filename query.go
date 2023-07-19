@@ -1,6 +1,7 @@
 package grafana_json_server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -9,11 +10,11 @@ import (
 
 // WithQuery is a convenience function to create a simple metric (i.e. one without any payload options).
 func WithQuery(target string, query QueryFunc) Option {
-	return WithDatasource(DataSource{
-		Metric: Metric{Value: target},
-		Query:  query,
-	})
+	return WithMetric(Metric{Value: target}, query, nil)
 }
+
+// The QueryFunc type is the function signature for a Query function to be passed to WithQuery or WithMetric
+type QueryFunc func(ctx context.Context, target string, request QueryRequest) (QueryResponse, error)
 
 // The QueryRequest structure is the query request from Grafana to the data source.
 type QueryRequest struct {

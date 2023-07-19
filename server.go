@@ -12,17 +12,23 @@ import (
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	dataSources       map[string]DataSource
+	dataSources       map[string]dataSource
 	variables         map[string]VariableFunc
 	logger            *slog.Logger
 	prometheusMetrics *prometheusMetrics
 	chi.Router
 }
 
+type dataSource struct {
+	Metric
+	MetricPayloadOptionFunc
+	query QueryFunc
+}
+
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := &Server{
-		dataSources: make(map[string]DataSource),
+		dataSources: make(map[string]dataSource),
 		variables:   make(map[string]VariableFunc),
 		logger:      slog.Default(),
 		Router:      chi.NewRouter(),
@@ -111,7 +117,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 
 	responses := make([]QueryResponse, 0)
 	for _, t := range queryRequest.Targets {
-		dataSource, ok := s.dataSources[t.Target]
+		datasource, ok := s.dataSources[t.Target]
 		if !ok {
 			s.logger.Warn("invalid query target", "target", t)
 			if s.prometheusMetrics != nil {
@@ -125,7 +131,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 			timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(t.Target))
 		}
 
-		resp, err := dataSource.Query.Query(req.Context(), t.Target, queryRequest)
+		resp, err := datasource.query(req.Context(), t.Target, queryRequest)
 
 		if timer != nil {
 			timer.ObserveDuration()

@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slog"
 	"net/http"
+	"time"
 )
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
@@ -41,7 +42,7 @@ func NewServer(options ...Option) *Server {
 	}
 
 	s.Router.Group(func(r chi.Router) {
-		r.Use(middleware.Logger(s.logger))
+		r.Use(middleware.Logger(s))
 		r.Post("/metrics", s.metrics)
 		r.Post("/metric-payload-options", s.metricsPayloadOptions)
 		r.Post("/variable", s.variable)
@@ -174,6 +175,15 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(variables)
 }
 
+func (s Server) Log(r *http.Request, statusCode int, latency time.Duration) {
+	s.logger.Info("request",
+		slog.String("path", r.URL.Path),
+		slog.String("method", r.Method),
+		slog.Int("code", statusCode),
+		slog.Duration("latency", latency),
+	)
+}
+
 // Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
 func (s Server) Describe(descs chan<- *prometheus.Desc) {
 	if s.prometheusMetrics != nil {
@@ -187,47 +197,3 @@ func (s Server) Collect(metrics chan<- prometheus.Metric) {
 		s.prometheusMetrics.Collect(metrics)
 	}
 }
-
-/*
-func requestLogger(logger *slog.Logger) func(next http.DataSource) http.DataSource {
-	return func(next http.DataSource) http.DataSource {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var reqBody bytes.Buffer
-			r2 := io.TeeReader(r.Body, &reqBody)
-			body, _ := io.ReadAll(r2)
-			logger.Debug("rcvd", "path", r.URL.Path, "body", string(body))
-			r.Body = io.NopCloser(&reqBody)
-
-			lrw := loggingResponseWriter{ResponseWriter: w}
-			next.ServeHTTP(&lrw, r)
-
-			logger.Debug("sent", "path", r.URL.Path, "statusCode", lrw.statusCode, "body", lrw.body.String())
-		})
-	}
-}
-
-type loggingResponseWriter struct {
-	http.ResponseWriter
-	wroteHeader bool
-	statusCode  int
-	body        bytes.Buffer
-}
-
-// WriteHeader implements the http.ResponseWriter interface.
-func (w *loggingResponseWriter) WriteHeader(code int) {
-	w.ResponseWriter.WriteHeader(code)
-	w.statusCode = code
-	w.wroteHeader = true
-}
-
-// Write implements the http.ResponseWriter interface.
-func (w *loggingResponseWriter) Write(body []byte) (int, error) {
-	if !w.wroteHeader {
-		w.WriteHeader(http.StatusOK)
-	}
-	w.body.Write(body)
-	return w.ResponseWriter.Write(body)
-}
-
-
-*/

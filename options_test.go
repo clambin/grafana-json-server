@@ -33,7 +33,7 @@ func TestWithLogger(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, metricResponse, w.Body.String())
-	assert.Contains(t, buf.String(), `level=INFO msg="request processed" request.from="" request.path=/metrics request.method=POST request.status=200 request.elapsed=`)
+	assert.Contains(t, buf.String(), `level=INFO msg=request path=/metrics method=POST code=200 latency=`)
 }
 
 func TestWithHandlerFunc(t *testing.T) {

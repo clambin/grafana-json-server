@@ -3,7 +3,7 @@ module github.com/clambin/grafana-json-server
 go 1.20
 
 require (
-	github.com/clambin/go-common/httpserver v0.7.0
+	github.com/clambin/go-common/httpserver v0.8.3
 	github.com/clambin/go-common/set v0.2.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/grafana/grafana-plugin-sdk-go v0.171.0

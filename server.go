@@ -16,6 +16,7 @@ type Server struct {
 	dataSources       map[string]dataSource
 	variables         map[string]VariableFunc
 	logger            *slog.Logger
+	requestLogger     middleware.RequestLogger
 	prometheusMetrics *prometheusMetrics
 	chi.Router
 }
@@ -34,6 +35,7 @@ func NewServer(options ...Option) *Server {
 		logger:      slog.Default(),
 		Router:      chi.NewRouter(),
 	}
+	s.requestLogger = s
 
 	s.Router.Use(chiMiddleware.Heartbeat("/"))
 
@@ -42,7 +44,7 @@ func NewServer(options ...Option) *Server {
 	}
 
 	s.Router.Group(func(r chi.Router) {
-		r.Use(middleware.Logger(s))
+		r.Use(middleware.Logger(s.requestLogger))
 		r.Post("/metrics", s.metrics)
 		r.Post("/metric-payload-options", s.metricsPayloadOptions)
 		r.Post("/variable", s.variable)
@@ -175,6 +177,7 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(variables)
 }
 
+// Log implements middleware.RequestLogger, but logs to the server's slog logger.
 func (s Server) Log(r *http.Request, statusCode int, latency time.Duration) {
 	s.logger.Info("request",
 		slog.String("path", r.URL.Path),

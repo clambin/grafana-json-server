@@ -51,7 +51,6 @@ func main() {
 	}
 
 	r := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithLogger(slog.Default()),
 		grafanaJSONServer.WithMetric(m1, grafanaJSONServer.HandlerFunc(timeSeriesQuery), getMetricPayloadOptions),
 		grafanaJSONServer.WithMetric(m2, grafanaJSONServer.HandlerFunc(tableQuery), nil),
 		grafanaJSONServer.WithVariable("query0", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {

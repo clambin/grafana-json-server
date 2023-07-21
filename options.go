@@ -1,6 +1,7 @@
 package grafana_json_server
 
 import (
+	"github.com/clambin/go-common/httpserver/middleware"
 	"golang.org/x/exp/slog"
 	"net/http"
 )
@@ -8,10 +9,17 @@ import (
 // Option configures a Server.
 type Option func(*Server)
 
-// WithLogger logs all requests to the server.  Only slog is supported as a logger.
+// WithLogger sets the slog Logger. The default is slog.Default().
 func WithLogger(l *slog.Logger) Option {
 	return func(s *Server) {
 		s.logger = l
+	}
+}
+
+// WithRequestLogger sets the request logger. The default request logger logs the request at INFO level.
+func WithRequestLogger(requestLogger middleware.RequestLogger) Option {
+	return func(s *Server) {
+		s.requestLogger = requestLogger
 	}
 }
 

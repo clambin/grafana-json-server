@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/clambin/go-common/httpserver/middleware"
 	grafanaJSONServer "github.com/clambin/grafana-json-server"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +35,36 @@ func TestWithLogger(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, metricResponse, w.Body.String())
 	assert.Contains(t, buf.String(), `level=INFO msg=request path=/metrics method=POST code=200 latency=`)
+}
+
+func TestWithRequestLogger(t *testing.T) {
+	var buf bytes.Buffer
+	l := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	h := grafanaJSONServer.NewServer(
+		grafanaJSONServer.WithLogger(l),
+		grafanaJSONServer.WithRequestLogger(middleware.RequestLoggerFunc(func(r *http.Request, code int, latency time.Duration) {
+			l.Debug("request",
+				slog.String("path", r.URL.Path),
+				slog.String("method", r.Method),
+				slog.Int("code", code),
+				slog.Duration("latency", latency),
+			)
+
+		})),
+		grafanaJSONServer.WithHandler("foo", nil),
+	)
+
+	const metricsRequest = `{ "metric": "foo" }`
+	const metricResponse = `[{"value":"foo","payloads":null}]
+`
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "http://localhost/metrics", io.NopCloser(bytes.NewBuffer([]byte(metricsRequest))))
+	h.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, metricResponse, w.Body.String())
+	assert.Contains(t, buf.String(), `level=DEBUG msg=request path=/metrics method=POST code=200 latency=`)
 }
 
 func TestWithHandlerFunc(t *testing.T) {

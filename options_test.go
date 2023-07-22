@@ -43,13 +43,7 @@ func TestWithRequestLogger(t *testing.T) {
 	h := grafanaJSONServer.NewServer(
 		grafanaJSONServer.WithLogger(l),
 		grafanaJSONServer.WithRequestLogger(middleware.RequestLoggerFunc(func(r *http.Request, code int, latency time.Duration) {
-			l.Debug("request",
-				slog.String("path", r.URL.Path),
-				slog.String("method", r.Method),
-				slog.Int("code", code),
-				slog.Duration("latency", latency),
-			)
-
+			l.Debug("request", "path", r.URL.Path, "method", r.Method, "code", code, "latency", latency)
 		})),
 		grafanaJSONServer.WithHandler("foo", nil),
 	)

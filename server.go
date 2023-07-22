@@ -179,12 +179,10 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 
 // Log implements middleware.RequestLogger, but logs to the server's slog logger.
 func (s Server) Log(r *http.Request, statusCode int, latency time.Duration) {
-	s.logger.Info("request",
-		slog.String("path", r.URL.Path),
-		slog.String("method", r.Method),
-		slog.Int("code", statusCode),
-		slog.Duration("latency", latency),
-	)
+	s.logger.LogAttrs(r.Context(), slog.LevelInfo, "request", []slog.Attr{
+		slog.String("path", r.URL.Path), slog.String("method", r.Method),
+		slog.Int("code", statusCode), slog.Duration("latency", latency),
+	}...)
 }
 
 // Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.

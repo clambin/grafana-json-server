@@ -16,10 +16,12 @@ func WithLogger(l *slog.Logger) Option {
 	}
 }
 
-// WithRequestLogger sets the request logger. The default request logger logs the request at INFO level.
-func WithRequestLogger(requestLogger middleware.RequestLogger) Option {
+// WithRequestLogger logs the incoming HTTP request, the status code and the latency at the specified slog log level.
+// By default, the server logs the request at slog.LevelDebug.
+func WithRequestLogger(logLevel slog.Level, formatter middleware.RequestLogFormatter) Option {
 	return func(s *Server) {
-		s.requestLogger = requestLogger
+		s.requestLogLevel = logLevel
+		s.requestLogFormatter = formatter
 	}
 }
 

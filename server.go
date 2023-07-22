@@ -8,16 +8,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slog"
 	"net/http"
-	"time"
 )
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	dataSources       map[string]dataSource
-	variables         map[string]VariableFunc
-	logger            *slog.Logger
-	requestLogger     middleware.RequestLogger
-	prometheusMetrics *prometheusMetrics
+	dataSources         map[string]dataSource
+	variables           map[string]VariableFunc
+	logger              *slog.Logger
+	requestLogLevel     slog.Level
+	requestLogFormatter middleware.RequestLogFormatter
+	prometheusMetrics   *prometheusMetrics
 	chi.Router
 }
 
@@ -30,12 +30,13 @@ type dataSource struct {
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := &Server{
-		dataSources: make(map[string]dataSource),
-		variables:   make(map[string]VariableFunc),
-		logger:      slog.Default(),
-		Router:      chi.NewRouter(),
+		dataSources:         make(map[string]dataSource),
+		variables:           make(map[string]VariableFunc),
+		Router:              chi.NewRouter(),
+		logger:              slog.Default(),
+		requestLogLevel:     slog.LevelDebug,
+		requestLogFormatter: middleware.DefaultRequestLogFormatter,
 	}
-	s.requestLogger = s
 
 	s.Router.Use(chiMiddleware.Heartbeat("/"))
 
@@ -44,7 +45,7 @@ func NewServer(options ...Option) *Server {
 	}
 
 	s.Router.Group(func(r chi.Router) {
-		r.Use(middleware.Logger(s.requestLogger))
+		r.Use(middleware.RequestLogger(s.logger, s.requestLogLevel, s.requestLogFormatter))
 		r.Post("/metrics", s.metrics)
 		r.Post("/metric-payload-options", s.metricsPayloadOptions)
 		r.Post("/variable", s.variable)
@@ -175,14 +176,6 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(variables)
-}
-
-// Log implements middleware.RequestLogger, but logs to the server's slog logger.
-func (s Server) Log(r *http.Request, statusCode int, latency time.Duration) {
-	s.logger.LogAttrs(r.Context(), slog.LevelInfo, "request", []slog.Attr{
-		slog.String("path", r.URL.Path), slog.String("method", r.Method),
-		slog.Int("code", statusCode), slog.Duration("latency", latency),
-	}...)
 }
 
 // Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.

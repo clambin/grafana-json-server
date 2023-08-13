@@ -2,7 +2,7 @@ package grafana_json_server
 
 import (
 	"github.com/clambin/go-common/httpserver/middleware"
-	"golang.org/x/exp/slog"
+	"log/slog"
 	"net/http"
 )
 

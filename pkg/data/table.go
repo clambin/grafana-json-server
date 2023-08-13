@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Table is a convenience structure to create tables to response to SimpleJSON Table Queries
+// Table is a convenience structure to create tables to response to a grafana-json-server TableQuery
 type Table struct {
 	Frame *data.Frame
 }

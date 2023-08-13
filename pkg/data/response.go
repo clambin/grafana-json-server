@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// CreateTableResponse creates a simplejson TableResponse from a Dataset
+// CreateTableResponse creates a grafana-json-server TableResponse from a Dataset
 func (t Table) CreateTableResponse() *grafanaJSONServer.TableResponse {
 	columns := make([]grafanaJSONServer.Column, len(t.Frame.Fields))
 

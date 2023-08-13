@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	grafanaJSONServer "github.com/clambin/grafana-json-server"
-	"golang.org/x/exp/slog"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"

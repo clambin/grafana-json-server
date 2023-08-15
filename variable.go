@@ -5,13 +5,6 @@ import (
 	"time"
 )
 
-// WithVariable adds a new dashboard variable to the server.
-func WithVariable(name string, v VariableFunc) Option {
-	return func(s *Server) {
-		s.variables[name] = v
-	}
-}
-
 // VariableFunc is the function signature of function provided to WithVariable.
 // It returns a list of possible values for a dashboard variable.
 type VariableFunc func(VariableRequest) ([]Variable, error)

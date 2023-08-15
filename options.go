@@ -28,7 +28,7 @@ func WithRequestLogger(logLevel slog.Level, formatter middleware.RequestLogForma
 // WithMetric adds a new metric to the server. See Metric for more configuration options for a metric.
 func WithMetric(m Metric, handler Handler, payloadOption MetricPayloadOptionFunc) Option {
 	return func(s *Server) {
-		s.dataSources[m.Value] = dataSource{
+		s.metricConfigs[m.Value] = metric{
 			Metric:                  m,
 			MetricPayloadOptionFunc: payloadOption,
 			Handler:                 handler,
@@ -61,5 +61,12 @@ func WithHTTPHandler(method, path string, handler http.Handler) Option {
 func WithPrometheusQueryMetrics(namespace, subsystem, application string) Option {
 	return func(s *Server) {
 		s.prometheusMetrics = createPrometheusMetrics(namespace, subsystem, application)
+	}
+}
+
+// WithVariable adds a new dashboard variable to the server.
+func WithVariable(name string, v VariableFunc) Option {
+	return func(s *Server) {
+		s.variables[name] = v
 	}
 }

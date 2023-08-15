@@ -15,6 +15,9 @@ type Metric struct {
 }
 
 // A MetricPayload configures a payload options for a metric.
+//
+// If the metric is of Type "select", or "multi-select", Options should contain all possible values for the metric.
+// Alternatively, it may be nil, in which case you should pass a MetricPayloadOptionFunc when calling WithMetric.
 type MetricPayload struct {
 	// Label is the name of the option, as shown on the screen.
 	Label string `json:"label,omitempty"`

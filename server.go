@@ -12,7 +12,7 @@ import (
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	dataSources         map[string]dataSource
+	metricConfigs       map[string]metric
 	variables           map[string]VariableFunc
 	logger              *slog.Logger
 	requestLogLevel     slog.Level
@@ -21,7 +21,7 @@ type Server struct {
 	chi.Router
 }
 
-type dataSource struct {
+type metric struct {
 	Metric
 	MetricPayloadOptionFunc
 	Handler
@@ -30,7 +30,7 @@ type dataSource struct {
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := &Server{
-		dataSources:         make(map[string]dataSource),
+		metricConfigs:       make(map[string]metric),
 		variables:           make(map[string]VariableFunc),
 		Router:              chi.NewRouter(),
 		logger:              slog.Default(),
@@ -72,10 +72,10 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: we could cache metrics so we only need to build it once
-	metrics := make([]Metric, 0)
-	for _, dataSource := range s.dataSources {
-		if queryRequest.Metric == "" || queryRequest.Metric == dataSource.Metric.Value {
-			metrics = append(metrics, dataSource.Metric)
+	metrics := make([]Metric, 0, len(s.metricConfigs))
+	for _, config := range s.metricConfigs {
+		if queryRequest.Metric == "" || queryRequest.Metric == config.Metric.Value {
+			metrics = append(metrics, config.Metric)
 		}
 	}
 
@@ -90,7 +90,7 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dataSource, ok := s.dataSources[req.Metric]
+	dataSource, ok := s.metricConfigs[req.Metric]
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -121,7 +121,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 
 	responses := make([]QueryResponse, 0)
 	for _, t := range queryRequest.Targets {
-		datasource, ok := s.dataSources[t.Target]
+		datasource, ok := s.metricConfigs[t.Target]
 		if !ok {
 			s.logger.Warn("invalid query target", "target", t)
 			if s.prometheusMetrics != nil {

@@ -9,20 +9,6 @@ import (
 	"time"
 )
 
-func TestTable_New(t *testing.T) {
-	table := createTable(10)
-
-	assert.Len(t, table.Frame.Fields, 4)
-	assert.Equal(t, "time", table.Frame.Fields[0].Name)
-	assert.Equal(t, 10, table.Frame.Fields[0].Len())
-	assert.Equal(t, "values", table.Frame.Fields[1].Name)
-	assert.Equal(t, 10, table.Frame.Fields[1].Len())
-	assert.Equal(t, "", table.Frame.Fields[2].Name)
-	assert.Equal(t, 10, table.Frame.Fields[2].Len())
-	assert.Equal(t, "labels", table.Frame.Fields[3].Name)
-	assert.Equal(t, 10, table.Frame.Fields[3].Len())
-}
-
 func TestTable_GetTimestamps(t *testing.T) {
 	table := createTable(10)
 	timestamps := table.GetTimestamps()
@@ -79,6 +65,8 @@ func TestTable_GetTimeValues(t *testing.T) {
 
 	_, found = table.GetTimeValues("not a column")
 	assert.False(t, found)
+
+	assert.Panics(t, func() { table.GetTimeValues("values") })
 }
 
 func TestTable_GetFloatValues(t *testing.T) {
@@ -89,6 +77,8 @@ func TestTable_GetFloatValues(t *testing.T) {
 
 	_, found = table.GetFloatValues("not a column")
 	assert.False(t, found)
+
+	assert.Panics(t, func() { table.GetFloatValues("time") })
 }
 
 func TestTable_GetStringValues(t *testing.T) {
@@ -99,6 +89,8 @@ func TestTable_GetStringValues(t *testing.T) {
 
 	_, found = table.GetStringValues("not a column")
 	assert.False(t, found)
+
+	assert.Panics(t, func() { table.GetStringValues("time") })
 }
 
 func TestTable_DeleteColumn(t *testing.T) {
@@ -136,7 +128,7 @@ func createTable(rows int) *data.Table {
 	)
 }
 
-func BenchmarkNew(b *testing.B) {
+func BenchmarkTable_New(b *testing.B) {
 	var timestamps []time.Time
 	var values []float64
 	var labels []string
@@ -154,5 +146,27 @@ func BenchmarkNew(b *testing.B) {
 			data.Column{Name: "values", Values: values},
 			data.Column{Name: "labels", Values: labels},
 		)
+	}
+}
+
+func BenchmarkTable_DeleteColumn(b *testing.B) {
+	var timestamps []time.Time
+	var values []float64
+	var labels []string
+	timestamp := time.Date(2022, 6, 4, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 1000; i++ {
+		timestamps = append(timestamps, timestamp)
+		values = append(values, float64(i))
+		labels = append(labels, timestamp.String())
+		timestamp = timestamp.Add(24 * time.Hour)
+	}
+	t := data.New(
+		data.Column{Name: "time", Values: timestamps},
+		data.Column{Name: "values", Values: values},
+		data.Column{Name: "labels", Values: labels},
+	)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = t.DeleteColumn("labels")
 	}
 }

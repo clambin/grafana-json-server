@@ -59,7 +59,7 @@ func (t Table) GetColumns() (columns []string) {
 }
 
 // GetValues returns the values for the specified column name. If the column does not exist, found will be false
-func (t Table) GetValues(column string) (values []interface{}, found bool) {
+func (t Table) GetValues(column string) (values []any, found bool) {
 	if f, n := t.Frame.FieldByName(column); n != -1 {
 		found = true
 		for i := 0; i < f.Len(); i++ {

@@ -7,6 +7,7 @@ require (
 	github.com/clambin/go-common/set v0.2.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/grafana/grafana-plugin-sdk-go v0.173.0
+	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.16.0
 	github.com/stretchr/testify v1.8.4
 )
@@ -21,7 +22,6 @@ require (
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/flatbuffers v2.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.13.1 // indirect
 	github.com/mattetti/filebuffer v1.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect

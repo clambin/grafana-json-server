@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	jsoniter "github.com/json-iterator/go"
 	"strconv"
 	"time"
 )
@@ -113,7 +114,7 @@ type TimeSeriesResponse struct {
 func (r TimeSeriesResponse) MarshalJSON() ([]byte, error) {
 	type r2 TimeSeriesResponse
 	v2 := r2(r)
-	return json.Marshal(v2)
+	return jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(v2)
 }
 
 // DataPoint contains one entry of a TimeSeriesResponse.
@@ -143,7 +144,7 @@ type TableResponse struct {
 // or a NumberColumn.
 type Column struct {
 	Text string
-	Data interface{}
+	Data any
 }
 
 // TimeColumn holds a slice of time.Time values (one per row).
@@ -166,15 +167,16 @@ type tableResponseColumn struct {
 	Type string `json:"type"`
 }
 
-type tableResponseRow []interface{}
+type tableResponseRow []any
 
 // MarshalJSON converts a TableResponse to JSON.
 func (t TableResponse) MarshalJSON() (output []byte, err error) {
 	var colTypes []string
 	var rowCount int
 
+	jsonIter := jsoniter.ConfigCompatibleWithStandardLibrary
 	if colTypes, rowCount, err = t.getColumnDetails(); err == nil {
-		output, err = json.Marshal(tableResponse{
+		output, err = jsonIter.Marshal(tableResponse{
 			Type:    "table",
 			Columns: t.buildColumns(colTypes),
 			Rows:    t.buildRows(rowCount),
@@ -184,18 +186,21 @@ func (t TableResponse) MarshalJSON() (output []byte, err error) {
 	return output, err
 }
 
-func (t TableResponse) getColumnDetails() (colTypes []string, rowCount int, err error) {
-	for _, entry := range t.Columns {
+func (t TableResponse) getColumnDetails() ([]string, int, error) {
+	colTypes := make([]string, len(t.Columns))
+	var rowCount int
+
+	for i, entry := range t.Columns {
 		var dataCount int
 		switch data := entry.Data.(type) {
 		case TimeColumn:
-			colTypes = append(colTypes, "time")
+			colTypes[i] = "time"
 			dataCount = len(data)
 		case StringColumn:
-			colTypes = append(colTypes, "string")
+			colTypes[i] = "string"
 			dataCount = len(data)
 		case NumberColumn:
-			colTypes = append(colTypes, "number")
+			colTypes[i] = "number"
 			dataCount = len(data)
 		}
 
@@ -204,10 +209,10 @@ func (t TableResponse) getColumnDetails() (colTypes []string, rowCount int, err 
 		}
 
 		if dataCount != rowCount {
-			return colTypes, rowCount, errors.New("error building table query output: all columns must have the same number of rows")
+			return nil, 0, errors.New("error building table query output: all columns must have the same number of rows")
 		}
 	}
-	return
+	return colTypes, rowCount, nil
 }
 
 func (t TableResponse) buildColumns(colTypes []string) []tableResponseColumn {

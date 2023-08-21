@@ -7,6 +7,7 @@ import (
 )
 
 // Table is a convenience structure to create tables to response to a grafana-json-server TableQuery
+// Deprecated: no longer supported
 type Table struct {
 	Frame *data.Frame
 }

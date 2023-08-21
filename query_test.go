@@ -22,12 +22,12 @@ func TestQueryRequest_Unmarshal(t *testing.T) {
 	"maxDataPoints": 100,
 	"interval": "1h",
 	"range": {
-		"from": "2020-01-01T00:00:00.000Z",
-		"to": "2020-12-31T00:00:00.000Z"
+		"from": "2023-08-01T00:00:00.000Z",
+		"to": "2023-08-31T00:00:00.000Z"
 	},
 	"targets": [
-		{ "target": "A", "type": "dataserie" },
-		{ "target": "B", "type": "table" }
+		{ "target": "A", "type": "dataserie", "payload": { "foo": "bar" } },
+		{ "target": "B", "type": "table", "payload": { "a": "b" } }
 	]
 }`
 
@@ -35,16 +35,28 @@ func TestQueryRequest_Unmarshal(t *testing.T) {
 
 	err := json.Unmarshal([]byte(input), &output)
 	require.NoError(t, err)
-	assert.Equal(t, 100, output.MaxDataPoints)
-	// assert.Equal(t, server.QueryRequestDuration(1*time.Hour), output.Interval)
-	// assert.Equal(t, 1*time.Hour, time.duration(output.Interval))
-	assert.Equal(t, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), output.Range.From)
-	assert.Equal(t, time.Date(2020, 12, 31, 0, 0, 0, 0, time.UTC), output.Range.To)
-	require.Len(t, output.Targets, 2)
-	assert.Equal(t, "A", output.Targets[0].Target)
-	assert.Equal(t, "dataserie", output.Targets[0].Type)
-	assert.Equal(t, "B", output.Targets[1].Target)
-	assert.Equal(t, "table", output.Targets[1].Type)
+
+	expected := grafanaJSONServer.QueryRequest{
+		Interval:      "1h",
+		MaxDataPoints: 100,
+		Targets: []grafanaJSONServer.QueryRequestTarget{
+			{
+				Payload: json.RawMessage(`{ "foo": "bar" }`),
+				Target:  "A",
+				Type:    "dataserie",
+			},
+			{
+				Payload: json.RawMessage(`{ "a": "b" }`),
+				Target:  "B",
+				Type:    "table",
+			},
+		},
+		Range: grafanaJSONServer.Range{
+			From: time.Date(2023, time.August, 1, 0, 0, 0, 0, time.UTC),
+			To:   time.Date(2023, time.August, 31, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	assert.Equal(t, expected, output)
 }
 
 func TestQueryResponse_Marshal(t *testing.T) {
@@ -125,7 +137,6 @@ func TestQueryResponse_Marshal(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, string(golden), b.String())
-
 		})
 	}
 }

@@ -6,7 +6,7 @@ require (
 	github.com/clambin/go-common/httpserver v0.12.0
 	github.com/clambin/go-common/set v0.2.0
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/grafana/grafana-plugin-sdk-go v0.184.0
+	github.com/grafana/grafana-plugin-sdk-go v0.186.0
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.17.0
 	github.com/stretchr/testify v1.8.4
@@ -38,7 +38,7 @@ require (
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect

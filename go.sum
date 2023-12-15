@@ -26,8 +26,8 @@ github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeN
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/uuid v1.4.0 h1:MtMxsa51/r9yyhkyLsVeVt0B+BGQZzpQiTQ4eHZ8bc4=
 github.com/google/uuid v1.4.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/grafana/grafana-plugin-sdk-go v0.196.0 h1:yDopQZ76Ug1UKZd2V4/MSi1k6SbeVz6o6ApwY6UP19U=
-github.com/grafana/grafana-plugin-sdk-go v0.196.0/go.mod h1:YB/80C5jTFj2jGAZVuuwsU6EVr63jjKcMgEB1nlSgiY=
+github.com/grafana/grafana-plugin-sdk-go v0.197.0 h1:5oUAQfa3gv5AX8Qhkoyuaj5E4hXbdR5mfa9P4zNQ0IE=
+github.com/grafana/grafana-plugin-sdk-go v0.197.0/go.mod h1:HC20FRnHgZprNqfcMRbrQ35gV25RctpHnRO+JbgmdqQ=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/compress v1.15.15 h1:EF27CXIuDsYJ6mmvtBRlEuB2UVOqHG1tAXgZ7yIO+lw=

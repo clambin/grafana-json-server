@@ -6,7 +6,7 @@ require (
 	github.com/clambin/go-common/httpserver v0.12.0
 	github.com/clambin/go-common/set v0.3.0
 	github.com/go-chi/chi/v5 v5.0.11
-	github.com/grafana/grafana-plugin-sdk-go v0.201.0
+	github.com/grafana/grafana-plugin-sdk-go v0.202.0
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.18.0
 	github.com/stretchr/testify v1.8.4

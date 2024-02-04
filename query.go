@@ -44,7 +44,7 @@ type QueryRequest struct {
 	AdhocFilters  []interface{}   `json:"adhocFilters"`
 }
 
-// QueryRequestTarget is one target in the QueryRequest structure. The main interesting fields as the Target, which is
+// QueryRequestTarget is one target in the QueryRequest structure. The main interesting fields are the Target, which is
 // the Metric's name, and the Payload, which contains all selection options in any payload options. Use GetPayload to
 // unmarshal the Payload into a Go structure.
 type QueryRequestTarget struct {

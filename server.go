@@ -1,7 +1,9 @@
 package grafana_json_server
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/clambin/go-common/httpserver/middleware"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
@@ -29,7 +31,7 @@ type metric struct {
 
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
-	s := &Server{
+	s := Server{
 		metricConfigs:       make(map[string]metric),
 		variables:           make(map[string]VariableFunc),
 		Router:              chi.NewRouter(),
@@ -41,7 +43,7 @@ func NewServer(options ...Option) *Server {
 	s.Router.Use(chiMiddleware.Heartbeat("/"))
 
 	for _, option := range options {
-		option(s)
+		option(&s)
 	}
 
 	s.Router.Group(func(r chi.Router) {
@@ -54,7 +56,7 @@ func NewServer(options ...Option) *Server {
 		r.Post("/query", s.query)
 	})
 
-	return s
+	return &s
 }
 
 func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
@@ -119,42 +121,47 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	responses := make([]QueryResponse, 0)
+	responses := make([]QueryResponse, 0, len(queryRequest.Targets))
 	for _, t := range queryRequest.Targets {
-		datasource, ok := s.metricConfigs[t.Target]
-		if !ok {
-			s.logger.Warn("invalid query target", "target", t)
-			if s.prometheusMetrics != nil {
-				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
-			}
-			continue
-		}
-
-		var timer *prometheus.Timer
-		if s.prometheusMetrics != nil {
-			timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(t.Target))
-		}
-
-		resp, err := datasource.Handler.Query(req.Context(), t.Target, queryRequest)
-
-		if timer != nil {
-			timer.ObserveDuration()
-		}
-
+		resp, err := s.queryTarget(req.Context(), t.Target, queryRequest)
 		if err != nil {
 			s.logger.Error("query failed", "err", err)
-			if s.prometheusMetrics != nil {
-				s.prometheusMetrics.errors.WithLabelValues(t.Target).Add(1)
-			}
 			continue
 		}
 		responses = append(responses, resp)
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(responses)
 	if err != nil {
 		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest) (QueryResponse, error) {
+	datasource, ok := s.metricConfigs[target]
+	if !ok {
+		if s.prometheusMetrics != nil {
+			s.prometheusMetrics.errors.WithLabelValues(target).Add(1)
+		}
+		return nil, fmt.Errorf("invalid query target: %s", target)
+	}
+
+	var timer *prometheus.Timer
+	if s.prometheusMetrics != nil {
+		timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(target))
+	}
+
+	resp, err := datasource.Handler.Query(ctx, target, req)
+
+	if timer != nil {
+		timer.ObserveDuration()
+	}
+
+	if s.prometheusMetrics != nil && err != nil {
+		s.prometheusMetrics.errors.WithLabelValues(target).Add(1)
+	}
+	return resp, err
 }
 
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
@@ -164,6 +171,7 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// explicitly create a slice so an empty list of variables is marshaled as "[]" rather than "null"
 	variables := make([]Variable, 0)
 	variableFunc, ok := s.variables[string(request.Target)]
 	if ok && variableFunc != nil {

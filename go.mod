@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/clambin/go-common/httpserver v0.12.0
-	github.com/clambin/go-common/set v0.4.0
+	github.com/clambin/go-common/set v0.4.1
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/grafana/grafana-plugin-sdk-go v0.206.0
 	github.com/json-iterator/go v1.1.12

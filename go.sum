@@ -8,8 +8,8 @@ github.com/cheekybits/genny v1.0.0 h1:uGGa4nei+j20rOSeDeP5Of12XVm7TGUd4dJA9RDitf
 github.com/cheekybits/genny v1.0.0/go.mod h1:+tQajlRqAUrPI7DOSpB0XAqZYtQakVtB7wXkRAgjxjQ=
 github.com/clambin/go-common/httpserver v0.12.0 h1:qUEqOl5XCVlSQVs90nCl6glx+oBtMSV7+v78ml9h6g0=
 github.com/clambin/go-common/httpserver v0.12.0/go.mod h1:DoibGuQHoI+KsHuGWsusY/ColY3TdzwBocOPR5EwxL4=
-github.com/clambin/go-common/set v0.4.1 h1:mtn+Q86omfaXtJFMUYoLlxNmRIT5Cmsrs8ig7PW/g28=
-github.com/clambin/go-common/set v0.4.1/go.mod h1:Q5GpBoM7B7abNV2Wzys+wQMInBHMoHyh/h0Cn2OmY4A=
+github.com/clambin/go-common/set v0.4.2 h1:GCQADniYvOTsW6yK/d/cwLH8W3io5mukudXNgQQbceU=
+github.com/clambin/go-common/set v0.4.2/go.mod h1:Q5GpBoM7B7abNV2Wzys+wQMInBHMoHyh/h0Cn2OmY4A=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

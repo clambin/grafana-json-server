@@ -3,6 +3,7 @@ package grafana_json_server_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/clambin/go-common/httpserver/middleware"
 	grafanaJSONServer "github.com/clambin/grafana-json-server"
@@ -12,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -118,26 +120,47 @@ func TestServer_WithVariable(t *testing.T) {
 		grafanaJSONServer.WithVariable("fubar", func(_ grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
 			return nil, errors.New("failed")
 		}),
+		grafanaJSONServer.WithVariable("", func(request grafanaJSONServer.VariableRequest) ([]grafanaJSONServer.Variable, error) {
+			var p map[string]any
+			var vars []grafanaJSONServer.Variable
+			if err := json.Unmarshal(request.Payload, &p); err == nil {
+				for k, v := range p {
+					vars = append(vars,
+						grafanaJSONServer.Variable{Text: strings.ToTitle(k), Value: k},
+						grafanaJSONServer.Variable{Text: strings.ToTitle(v.(string)), Value: v.(string)},
+					)
+				}
+			}
+			return vars, nil
+		}),
 	)
 
-	testCases := []struct {
+	tests := []struct {
 		name           string
 		request        string
 		wantStatusCode int
 		want           string
 	}{
 		{
-			name:           "valid",
+			name:           "named",
 			request:        `{ "payload": { "target": "foo" } }`,
 			wantStatusCode: http.StatusOK,
 			want: `[{"__text":"Foo","__value":"foo"},{"__text":"Bar","__value":"bar"}]
 `,
 		},
 		{
+			name:           "unnamed",
+			request:        `{ "payload": { "foo": "bar"} }`,
+			wantStatusCode: http.StatusOK,
+			want: `[{"__text":"FOO","__value":"foo"},{"__text":"BAR","__value":"bar"}]
+`,
+		},
+		{
 			name:           "missing",
 			request:        `{ "payload": { "target": "bar" } }`,
-			wantStatusCode: http.StatusOK,
-			want:           "[]\n",
+			wantStatusCode: http.StatusBadRequest,
+			want: `[]
+`,
 		},
 		{
 			name:           "failure",
@@ -151,7 +174,7 @@ func TestServer_WithVariable(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "http://localhost/variable", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))

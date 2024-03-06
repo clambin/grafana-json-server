@@ -165,21 +165,22 @@ func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest
 }
 
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
-	var request VariableRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	request, err := parseVariableRequest(r.Body)
+	if err != nil {
 		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// explicitly create a slice so an empty list of variables is marshaled as "[]" rather than "null"
-	variables := make([]Variable, 0)
-	variableFunc, ok := s.variables[string(request.Target)]
-	if ok && variableFunc != nil {
-		var err error
-		if variables, err = variableFunc(request); err != nil {
-			http.Error(w, "variables: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+	variableFunc, ok := s.variables[request.Target]
+	if !ok {
+		http.Error(w, "no variable handler found", http.StatusBadRequest)
+		return
+	}
+
+	variables, err := variableFunc(request)
+	if err != nil {
+		http.Error(w, "variables: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -187,15 +188,15 @@ func (s Server) variable(w http.ResponseWriter, r *http.Request) {
 }
 
 // Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
-func (s Server) Describe(descs chan<- *prometheus.Desc) {
+func (s Server) Describe(ch chan<- *prometheus.Desc) {
 	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.Describe(descs)
+		s.prometheusMetrics.Describe(ch)
 	}
 }
 
 // Collect implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
-func (s Server) Collect(metrics chan<- prometheus.Metric) {
+func (s Server) Collect(ch chan<- prometheus.Metric) {
 	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.Collect(metrics)
+		s.prometheusMetrics.Collect(ch)
 	}
 }

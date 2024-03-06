@@ -2,39 +2,24 @@ package grafana_json_server
 
 import (
 	"encoding/json"
-	"time"
+	"io"
 )
 
 // VariableFunc is the function signature of function provided to WithVariable.
 // It returns a list of possible values for a dashboard variable.
 type VariableFunc func(VariableRequest) ([]Variable, error)
 
-// VariableRequest is the request sent to VariableFunc. Target is the name of the variable, as provided to WithVariable.
+// VariableRequest is the request sent to VariableFunc.
+//
+// Payload and Target are determined by the Grafana definition of the variable:
+//   - if Raw JSON is off, Payload contains a JSON object with a single field "target", as set in the Variable's Query field.
+//   - if Raw JSON is on, Payload contains the JSON object set in the Variable's Query field.
+//
+// In both cases, if the Payload contains a field "target", its value is stored in Target. If no "target" exists, Target is blank. No error is raised.
 type VariableRequest struct {
-	Target VariableTarget `json:"payload"`
-	Range  struct {
-		From time.Time `json:"from"`
-		To   time.Time `json:"to"`
-		Raw  struct {
-			From string `json:"from"`
-			To   string `json:"to"`
-		} `json:"raw"`
-	} `json:"range"`
-}
-
-// VariableTarget is the name of the dashboard variable, as provided to WithVariable.
-type VariableTarget string
-
-// UnmarshalJSON unmarshals a VariableRequest's Target to a string.
-func (t *VariableTarget) UnmarshalJSON(body []byte) error {
-	var payload struct {
-		Target string `json:"target"`
-	}
-	err := json.Unmarshal(body, &payload)
-	if err == nil {
-		*t = VariableTarget(payload.Target)
-	}
-	return err
+	Target  string
+	Payload json.RawMessage `json:"payload"`
+	Range   Range           `json:"range"`
 }
 
 // Variable is one possible value for a dashboard value.
@@ -42,4 +27,21 @@ func (t *VariableTarget) UnmarshalJSON(body []byte) error {
 type Variable struct {
 	Text  string `json:"__text"`
 	Value string `json:"__value"`
+}
+
+func parseVariableRequest(r io.Reader) (VariableRequest, error) {
+	var req VariableRequest
+	err := json.NewDecoder(r).Decode(&req)
+	if err != nil {
+		return req, err
+	}
+
+	var payload struct {
+		Target string `json:"target"`
+	}
+	err = json.Unmarshal(req.Payload, &payload)
+	if err == nil {
+		req.Target = payload.Target
+	}
+	return req, err
 }

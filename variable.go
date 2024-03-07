@@ -2,7 +2,6 @@ package grafana_json_server
 
 import (
 	"encoding/json"
-	"io"
 )
 
 // VariableFunc is the function signature of function provided to WithVariable.
@@ -17,9 +16,26 @@ type VariableFunc func(VariableRequest) ([]Variable, error)
 //
 // In both cases, if the Payload contains a field "target", its value is stored in Target. If no "target" exists, Target is blank. No error is raised.
 type VariableRequest struct {
-	Target  string
 	Payload json.RawMessage `json:"payload"`
 	Range   Range           `json:"range"`
+	Target  string
+}
+
+func (v *VariableRequest) UnmarshalJSON(bytes []byte) error {
+	type v2 VariableRequest
+	var req2 v2
+	if err := json.Unmarshal(bytes, &req2); err != nil {
+		return err
+	}
+	*v = VariableRequest(req2)
+	var payload struct {
+		Target string `json:"target"`
+	}
+	err := json.Unmarshal(v.Payload, &payload)
+	if err == nil {
+		v.Target = payload.Target
+	}
+	return err
 }
 
 // Variable is one possible value for a dashboard value.
@@ -27,21 +43,4 @@ type VariableRequest struct {
 type Variable struct {
 	Text  string `json:"__text"`
 	Value string `json:"__value"`
-}
-
-func parseVariableRequest(r io.Reader) (VariableRequest, error) {
-	var req VariableRequest
-	err := json.NewDecoder(r).Decode(&req)
-	if err != nil {
-		return req, err
-	}
-
-	var payload struct {
-		Target string `json:"target"`
-	}
-	err = json.Unmarshal(req.Payload, &payload)
-	if err == nil {
-		req.Target = payload.Target
-	}
-	return req, err
 }

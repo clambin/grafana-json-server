@@ -165,8 +165,8 @@ func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest
 }
 
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
-	request, err := parseVariableRequest(r.Body)
-	if err != nil {
+	var request VariableRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}

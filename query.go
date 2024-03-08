@@ -125,11 +125,19 @@ type DataPoint struct {
 
 // MarshalJSON converts a DataPoint to JSON.
 func (d DataPoint) MarshalJSON() ([]byte, error) {
-	return []byte(`[` +
-			strconv.FormatFloat(d.Value, 'f', -1, 64) + `,` +
-			strconv.FormatInt(d.Timestamp.UnixMilli(), 10) +
-			`]`),
-		nil
+	// this basically does json.Marshal([]any{d.Value, d.Timestamp.UnixMilli()}), but twice as fast
+
+	value := strconv.FormatFloat(d.Value, 'f', -1, 64)
+	timestamp := strconv.FormatInt(d.Timestamp.UnixMilli(), 10)
+
+	o := make([]byte, 3+len(value)+len(timestamp))
+	o[0] = '['
+	copy(o[1:], value)
+	o[1+len(value)] = ','
+	copy(o[1+len(value)+1:], timestamp)
+	o[len(o)-1] = ']'
+
+	return o, nil
 }
 
 var _ QueryResponse = TableResponse{}
@@ -229,18 +237,25 @@ func (t TableResponse) buildColumns(colTypes []string) []tableResponseColumn {
 func (t TableResponse) buildRows(rowCount int) []tableResponseRow {
 	rows := make([]tableResponseRow, rowCount)
 	for row := 0; row < rowCount; row++ {
-		newRow := make(tableResponseRow, len(t.Columns))
-		for column, entry := range t.Columns {
-			switch data := entry.Data.(type) {
-			case TimeColumn:
-				newRow[column] = data[row]
-			case StringColumn:
-				newRow[column] = data[row]
-			case NumberColumn:
-				newRow[column] = data[row]
-			}
-		}
-		rows[row] = newRow
+		rows[row] = make([]any, len(t.Columns))
 	}
+
+	for column, entry := range t.Columns {
+		switch data := entry.Data.(type) {
+		case TimeColumn:
+			fillColumn(rows, column, data)
+		case StringColumn:
+			fillColumn(rows, column, data)
+		case NumberColumn:
+			fillColumn(rows, column, data)
+		}
+	}
+
 	return rows
+}
+
+func fillColumn[T any](rows []tableResponseRow, column int, values []T) {
+	for row, value := range values {
+		rows[row][column] = value
+	}
 }

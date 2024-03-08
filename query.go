@@ -229,18 +229,25 @@ func (t TableResponse) buildColumns(colTypes []string) []tableResponseColumn {
 func (t TableResponse) buildRows(rowCount int) []tableResponseRow {
 	rows := make([]tableResponseRow, rowCount)
 	for row := 0; row < rowCount; row++ {
-		newRow := make(tableResponseRow, len(t.Columns))
-		for column, entry := range t.Columns {
-			switch data := entry.Data.(type) {
-			case TimeColumn:
-				newRow[column] = data[row]
-			case StringColumn:
-				newRow[column] = data[row]
-			case NumberColumn:
-				newRow[column] = data[row]
-			}
-		}
-		rows[row] = newRow
+		rows[row] = make([]any, len(t.Columns))
 	}
+
+	for column, entry := range t.Columns {
+		switch data := entry.Data.(type) {
+		case TimeColumn:
+			fillColumn(rows, column, data)
+		case StringColumn:
+			fillColumn(rows, column, data)
+		case NumberColumn:
+			fillColumn(rows, column, data)
+		}
+	}
+
 	return rows
+}
+
+func fillColumn[T any](rows []tableResponseRow, column int, values []T) {
+	for row, value := range values {
+		rows[row][column] = value
+	}
 }

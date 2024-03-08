@@ -204,6 +204,10 @@ func buildTimeSeriesResponse(count int) grafanaJSONServer.TimeSeriesResponse {
 	return grafanaJSONServer.TimeSeriesResponse{Target: "foo", DataPoints: datapoints}
 }
 
+// current:
+// BenchmarkTableResponse_MarshalJSON-16               4170            281084 ns/op          165663 B/op       4005 allocs/op
+// new:
+// BenchmarkTableResponse_MarshalJSON-16               4216            277714 ns/op          165513 B/op       4005 allocs/op
 func BenchmarkTableResponse_MarshalJSON(b *testing.B) {
 	response := buildTableResponse(1000)
 	b.ResetTimer()

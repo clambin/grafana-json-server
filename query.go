@@ -125,11 +125,19 @@ type DataPoint struct {
 
 // MarshalJSON converts a DataPoint to JSON.
 func (d DataPoint) MarshalJSON() ([]byte, error) {
-	return []byte(`[` +
-			strconv.FormatFloat(d.Value, 'f', -1, 64) + `,` +
-			strconv.FormatInt(d.Timestamp.UnixMilli(), 10) +
-			`]`),
-		nil
+	// this basically does json.Marshal([]any{d.Value, d.Timestamp.UnixMilli()}), but twice as fast
+
+	value := strconv.FormatFloat(d.Value, 'f', -1, 64)
+	timestamp := strconv.FormatInt(d.Timestamp.UnixMilli(), 10)
+
+	o := make([]byte, 3+len(value)+len(timestamp))
+	o[0] = '['
+	copy(o[1:], value)
+	o[1+len(value)] = ','
+	copy(o[1+len(value)+1:], timestamp)
+	o[len(o)-1] = ']'
+
+	return o, nil
 }
 
 var _ QueryResponse = TableResponse{}

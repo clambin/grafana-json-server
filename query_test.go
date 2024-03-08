@@ -182,6 +182,19 @@ func makeCombinedQueryResponse() combinedResponse {
 	return r
 }
 
+func BenchmarkDataPoint_MarshalJSON(b *testing.B) {
+	dataPoint := grafanaJSONServer.DataPoint{
+		Timestamp: time.Date(2024, time.March, 8, 0, 0, 0, 0, time.UTC),
+		Value:     1024.1024,
+	}
+	for i := 0; i < b.N; i++ {
+		_, err := json.Marshal(dataPoint)
+		if err != nil {
+			b.Errorf("marshal failed: %s", err.Error())
+		}
+	}
+}
+
 func BenchmarkTimeSeriesResponse_MarshalJSON(b *testing.B) {
 	response := buildTimeSeriesResponse(1000)
 	b.ResetTimer()

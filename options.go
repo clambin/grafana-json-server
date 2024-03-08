@@ -1,7 +1,6 @@
 package grafana_json_server
 
 import (
-	"github.com/clambin/go-common/httpserver/middleware"
 	"log/slog"
 	"net/http"
 )
@@ -13,15 +12,6 @@ type Option func(*Server)
 func WithLogger(l *slog.Logger) Option {
 	return func(s *Server) {
 		s.logger = l
-	}
-}
-
-// WithRequestLogger logs the incoming HTTP request, the status code and the latency at the specified slog log level.
-// By default, the server logs the request at slog.LevelDebug.
-func WithRequestLogger(logLevel slog.Level, formatter middleware.RequestLogFormatter) Option {
-	return func(s *Server) {
-		s.requestLogLevel = logLevel
-		s.requestLogFormatter = formatter
 	}
 }
 
@@ -44,7 +34,7 @@ func WithHandler(target string, handler Handler) Option {
 // WithHTTPHandler adds a http.Handler to its http router.
 func WithHTTPHandler(method, path string, handler http.Handler) Option {
 	return func(s *Server) {
-		s.Router.Method(method, path, handler)
+		s.Handler.(*http.ServeMux).Handle(method+" "+path, handler)
 	}
 }
 

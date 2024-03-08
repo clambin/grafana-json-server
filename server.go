@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/clambin/go-common/httpserver/middleware"
-	"github.com/go-chi/chi/v5"
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"log/slog"
 	"net/http"
@@ -14,13 +11,11 @@ import (
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	metricConfigs       map[string]metric
-	variables           map[string]VariableFunc
-	logger              *slog.Logger
-	requestLogLevel     slog.Level
-	requestLogFormatter middleware.RequestLogFormatter
-	prometheusMetrics   *prometheusMetrics
-	chi.Router
+	http.Handler
+	metricConfigs     map[string]metric
+	variables         map[string]VariableFunc
+	logger            *slog.Logger
+	prometheusMetrics *prometheusMetrics
 }
 
 type metric struct {
@@ -32,31 +27,38 @@ type metric struct {
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := Server{
-		metricConfigs:       make(map[string]metric),
-		variables:           make(map[string]VariableFunc),
-		Router:              chi.NewRouter(),
-		logger:              slog.Default(),
-		requestLogLevel:     slog.LevelDebug,
-		requestLogFormatter: middleware.DefaultRequestLogFormatter,
+		metricConfigs: make(map[string]metric),
+		variables:     make(map[string]VariableFunc),
+		logger:        slog.Default(),
 	}
 
-	s.Router.Use(chiMiddleware.Heartbeat("/"))
+	h := http.NewServeMux()
+	s.Handler = h
 
 	for _, option := range options {
 		option(&s)
 	}
 
-	s.Router.Group(func(r chi.Router) {
-		r.Use(middleware.RequestLogger(s.logger, s.requestLogLevel, s.requestLogFormatter))
-		r.Post("/metrics", s.metrics)
-		r.Post("/metric-payload-options", s.metricsPayloadOptions)
-		r.Post("/variable", s.variable)
-		r.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-		r.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-		r.Post("/query", s.query)
-	})
+	h.HandleFunc("POST /metrics", s.metrics)
+	h.HandleFunc("POST /metric-payload-options", s.metricsPayloadOptions)
+	h.HandleFunc("POST /variable", s.variable)
+	h.HandleFunc("POST /tag-keys", notImplemented)
+	h.HandleFunc("POST /tag-values", notImplemented)
+	h.HandleFunc("POST /query", s.query)
+	h.HandleFunc("/", heartbeat)
 
 	return &s
+}
+
+func heartbeat(w http.ResponseWriter, _ *http.Request) {
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("."))
+}
+
+func notImplemented(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func (s Server) metrics(w http.ResponseWriter, r *http.Request) {

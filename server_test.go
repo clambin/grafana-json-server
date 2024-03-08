@@ -36,7 +36,7 @@ func TestServer_Metrics(t *testing.T) {
 			},
 		))
 
-	testCases := []struct {
+	tests := []struct {
 		name           string
 		request        string
 		wantStatusCode int
@@ -63,7 +63,7 @@ func TestServer_Metrics(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "http://localhost/metrics", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))
@@ -105,7 +105,7 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 		),
 	)
 
-	testCases := []struct {
+	tests := []struct {
 		name           string
 		request        string
 		wantStatusCode int
@@ -141,7 +141,7 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "http://localhost/metric-payload-options", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))
@@ -183,7 +183,7 @@ func TestServer_WithQuery(t *testing.T) {
 		})),
 	)
 
-	testCases := []struct {
+	tests := []struct {
 		name           string
 		queryRequest   string
 		wantStatusCode int
@@ -234,7 +234,7 @@ func TestServer_WithQuery(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(bytes.NewBuffer([]byte(tt.queryRequest))))

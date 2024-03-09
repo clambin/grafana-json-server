@@ -66,14 +66,12 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 		} `json:"payload"`
 	}
 
-	var queryRequest metricRequest
-	err := json.NewDecoder(r.Body).Decode(&queryRequest)
+	queryRequest, err := parseRequest[metricRequest](w, r)
 	if err != nil {
-		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+		s.logger.Error("invalid request", "err", err)
 		return
 	}
 
-	// TODO: we could cache metrics so we only need to build it once
 	metrics := make([]Metric, 0, len(s.metricConfigs))
 	for _, config := range s.metricConfigs {
 		if queryRequest.Metric == "" || queryRequest.Metric == config.Metric.Value {
@@ -86,10 +84,9 @@ func (s Server) metrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
-	var req MetricPayloadOptionsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
-		return
+	req, err := parseRequest[MetricPayloadOptionsRequest](w, r)
+	if err != nil {
+		s.logger.Error("invalid request", "err", err)
 	}
 
 	dataSource, ok := s.metricConfigs[req.Metric]
@@ -101,6 +98,7 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if dataSource.MetricPayloadOptionFunc == nil {
+		w.Header().Set("Content-Type", "plain/text")
 		http.Error(w, "invalid request: target does not have a metric payload option function", http.StatusInternalServerError)
 		return
 	}
@@ -114,16 +112,16 @@ func (s Server) metricsPayloadOptions(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(options)
 }
 
-func (s Server) query(w http.ResponseWriter, req *http.Request) {
-	var queryRequest QueryRequest
-	if err := json.NewDecoder(req.Body).Decode(&queryRequest); err != nil {
-		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+func (s Server) query(w http.ResponseWriter, r *http.Request) {
+	queryRequest, err := parseRequest[QueryRequest](w, r)
+	if err != nil {
+		s.logger.Error("invalid request", "err", err)
 		return
 	}
 
 	responses := make([]QueryResponse, 0, len(queryRequest.Targets))
 	for _, t := range queryRequest.Targets {
-		resp, err := s.queryTarget(req.Context(), t.Target, queryRequest)
+		resp, err := s.queryTarget(r.Context(), t.Target, queryRequest)
 		if err != nil {
 			s.logger.Error("query failed", "err", err)
 			continue
@@ -132,8 +130,7 @@ func (s Server) query(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(responses)
-	if err != nil {
+	if err = json.NewEncoder(w).Encode(responses); err != nil {
 		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -165,37 +162,52 @@ func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest
 }
 
 func (s Server) variable(w http.ResponseWriter, r *http.Request) {
-	var request VariableRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+	request, err := parseRequest[VariableRequest](w, r)
+	if err != nil {
+		s.logger.Error("invalid request", "err", err)
 		return
 	}
 
-	// explicitly create a slice so an empty list of variables is marshaled as "[]" rather than "null"
-	variables := make([]Variable, 0)
-	variableFunc, ok := s.variables[string(request.Target)]
-	if ok && variableFunc != nil {
-		var err error
-		if variables, err = variableFunc(request); err != nil {
-			http.Error(w, "variables: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+	variableFunc, ok := s.variables[request.Target]
+	if !ok {
+		s.logger.Error("no variable handler found", "err", err)
+		w.Header().Set("Content-Type", "plain/text")
+		http.Error(w, "no variable handler found for '"+request.Target+"'", http.StatusBadRequest)
+		return
+	}
+
+	variables, err := variableFunc(request)
+	if err != nil {
+		s.logger.Error("variable handler failed", "err", err, "target", request.Target)
+		w.Header().Set("Content-Type", "plain/text")
+		http.Error(w, "variables: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(variables)
 }
 
+func parseRequest[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	var request T
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		w.Header().Set("Content-Type", "plain/text")
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+	}
+	return request, err
+}
+
 // Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
-func (s Server) Describe(descs chan<- *prometheus.Desc) {
+func (s Server) Describe(ch chan<- *prometheus.Desc) {
 	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.Describe(descs)
+		s.prometheusMetrics.Describe(ch)
 	}
 }
 
 // Collect implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
-func (s Server) Collect(metrics chan<- prometheus.Metric) {
+func (s Server) Collect(ch chan<- prometheus.Metric) {
 	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.Collect(metrics)
+		s.prometheusMetrics.Collect(ch)
 	}
 }

@@ -2,37 +2,38 @@ package grafana_json_server
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // VariableFunc is the function signature of function provided to WithVariable.
 // It returns a list of possible values for a dashboard variable.
 type VariableFunc func(VariableRequest) ([]Variable, error)
 
-// VariableRequest is the request sent to VariableFunc. Target is the name of the variable, as provided to WithVariable.
+// VariableRequest is the request sent to VariableFunc.
+//
+// Payload and Target are determined by the Grafana definition of the variable:
+//   - if Raw JSON is off, Payload contains a JSON object with a single field "target", as set in the Variable's Query field.
+//   - if Raw JSON is on, Payload contains the JSON object set in the Variable's Query field.
+//
+// In both cases, if the Payload contains a field "target", its value is stored in Target. If no "target" exists, Target is blank. No error is raised.
 type VariableRequest struct {
-	Target VariableTarget `json:"payload"`
-	Range  struct {
-		From time.Time `json:"from"`
-		To   time.Time `json:"to"`
-		Raw  struct {
-			From string `json:"from"`
-			To   string `json:"to"`
-		} `json:"raw"`
-	} `json:"range"`
+	Payload json.RawMessage `json:"payload"`
+	Range   Range           `json:"range"`
+	Target  string
 }
 
-// VariableTarget is the name of the dashboard variable, as provided to WithVariable.
-type VariableTarget string
-
-// UnmarshalJSON unmarshals a VariableRequest's Target to a string.
-func (t *VariableTarget) UnmarshalJSON(body []byte) error {
+func (v *VariableRequest) UnmarshalJSON(bytes []byte) error {
+	type v2 VariableRequest
+	var req2 v2
+	if err := json.Unmarshal(bytes, &req2); err != nil {
+		return err
+	}
+	*v = VariableRequest(req2)
 	var payload struct {
 		Target string `json:"target"`
 	}
-	err := json.Unmarshal(body, &payload)
+	err := json.Unmarshal(v.Payload, &payload)
 	if err == nil {
-		*t = VariableTarget(payload.Target)
+		v.Target = payload.Target
 	}
 	return err
 }

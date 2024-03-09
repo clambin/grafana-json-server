@@ -25,23 +25,20 @@ func (qf HandlerFunc) Query(ctx context.Context, target string, request QueryReq
 
 // The QueryRequest structure is the query request from Grafana to the data source.
 type QueryRequest struct {
-	App        string               `json:"app"`
-	Timezone   string               `json:"timezone"`
-	StartTime  int64                `json:"startTime"`
-	Interval   string               `json:"interval"`
-	IntervalMs int                  `json:"intervalMs"`
-	PanelID    any                  `json:"panelId"`
-	Targets    []QueryRequestTarget `json:"targets"`
-	Range      Range                `json:"range"`
-	RequestID  string               `json:"requestId"`
-	RangeRaw   struct {
-		From string `json:"from"`
-		To   string `json:"to"`
-	} `json:"rangeRaw"`
-	ScopedVars    json.RawMessage `json:"scopedVars"`
-	MaxDataPoints int             `json:"maxDataPoints"`
-	LiveStreaming bool            `json:"liveStreaming"`
-	AdhocFilters  []interface{}   `json:"adhocFilters"`
+	App           string               `json:"app"`
+	Timezone      string               `json:"timezone"`
+	StartTime     int64                `json:"startTime"`
+	Interval      string               `json:"interval"`
+	IntervalMs    int                  `json:"intervalMs"`
+	PanelID       any                  `json:"panelId"`
+	Targets       []QueryRequestTarget `json:"targets"`
+	Range         Range                `json:"range"`
+	RequestID     string               `json:"requestId"`
+	RangeRaw      RawRange             `json:"rangeRaw"`
+	ScopedVars    json.RawMessage      `json:"scopedVars"`
+	MaxDataPoints int                  `json:"maxDataPoints"`
+	LiveStreaming bool                 `json:"liveStreaming"`
+	AdhocFilters  []interface{}        `json:"adhocFilters"`
 }
 
 // QueryRequestTarget is one target in the QueryRequest structure. The main interesting fields are the Target, which is
@@ -64,10 +61,13 @@ type QueryRequestTarget struct {
 type Range struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
-	Raw  struct {
-		From string `json:"from"`
-		To   string `json:"to"`
-	} `json:"raw"`
+	Raw  RawRange  `json:"raw"`
+}
+
+// RawRange is the raw time range of the QueryRequest.
+type RawRange struct {
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // GetPayload unmarshals the target's raw payload into a provided payload.

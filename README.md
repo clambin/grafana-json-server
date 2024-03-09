@@ -6,7 +6,7 @@
 ![GitHub](https://img.shields.io/github/license/clambin/grafana-json-server?style=plastic)
 [![GoDoc](https://pkg.go.dev/badge/github.com/clambin/grafana-json-server?utm_source=godoc)](http://pkg.go.dev/github.com/clambin/grafana-json-server)
 
-Basic Go implementation of simPod's Grafana JSON datasource.
+Go implementation of simPod's Grafana JSON datasource.
 
 Works with:
 

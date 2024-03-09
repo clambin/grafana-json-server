@@ -7,7 +7,8 @@ import (
 
 func Example_variable() {
 	s := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithVariable("query0", variableFunc),
+		grafanaJSONServer.WithVariable("query0", variableFunc), // this will be called if the payload contains "target": "query0"
+		grafanaJSONServer.WithVariable("", variableFunc),       // this will be called if the payload contains no "target"
 	)
 
 	_ = http.ListenAndServe(":8080", s)

@@ -173,7 +173,7 @@ In the server, create the server with the WithVariable option:
 	)
 	_ = http.ListenAndServe(":8080", s)
 
-In the example, "query0" is the name of the dashboard variable.
+In the example, "query0" is the name specified in the Query section of the variable definition.
 
 This causes Grafana to call the variableFunc whenever the variable is refreshed.  This function returns all possible
 values for the variable:
@@ -193,6 +193,18 @@ A Query function can read the value of each variables by examining the ScopedVar
 		Query0 grafanaJSONServer.ScopedVar[[]string]
 	}
 	_ = req.GetScopedVars(&scopedVars))
+
+Note: in non-Raw JSON mode, GrafanaJSONDatasource stores the Query name in a json payload, with a "target" field holding the Query name.
+
+In Raw JSON mode, a user can specify any JSON structure as payload. To route the request to the correct VariableFunc,
+add a "target" field with the relevant name. If no "target" field is found, the request is routed to a VariableFunc with a
+blank ("") target:
+
+  - Query(non-raw): "foo" will route the request to "foo"
+  - Query(raw): "{ "target": "bar" }" will route the request to "bar"
+  - Query(raw): "{ "args": "some-args" }" will route the request to ""
+
+See the Variable example for more.
 
 [JSON API Grafana Datasource]: https://github.com/simPod/GrafanaJsonDatasource
 */

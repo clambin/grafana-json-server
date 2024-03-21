@@ -1,7 +1,6 @@
 package grafana_json_server_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -45,29 +44,29 @@ func TestWithPrometheusQueryMetrics(t *testing.T) {
 	)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(bytes.NewBufferString(`{ "targets": [ { "target": "foo" } ] }`)))
+	req, _ := http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(strings.NewReader(`{ "targets": [ { "target": "foo" } ] }`)))
 	h.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	assert.Equal(t, 1, testutil.CollectAndCount(h))
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(bytes.NewBufferString(`{ "targets": [ { "target": "missing" } ] }`)))
+	req, _ = http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(strings.NewReader(`{ "targets": [ { "target": "missing" } ] }`)))
 	h.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	assert.NoError(t, testutil.CollectAndCompare(h, bytes.NewBufferString(`
+	assert.NoError(t, testutil.CollectAndCompare(h, strings.NewReader(`
 # HELP namespace_subsystem_json_query_error_count Grafana JSON Data server count of failed requests
 # TYPE namespace_subsystem_json_query_error_count counter
 namespace_subsystem_json_query_error_count{application="test",target="missing"} 1
 `), `namespace_subsystem_json_query_error_count`))
 
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(bytes.NewBufferString(`{ "targets": [ { "target": "fubar" } ] }`)))
+	req, _ = http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(strings.NewReader(`{ "targets": [ { "target": "fubar" } ] }`)))
 	h.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	assert.NoError(t, testutil.CollectAndCompare(h, bytes.NewBufferString(`
+	assert.NoError(t, testutil.CollectAndCompare(h, strings.NewReader(`
 # HELP namespace_subsystem_json_query_error_count Grafana JSON Data server count of failed requests
 # TYPE namespace_subsystem_json_query_error_count counter
 namespace_subsystem_json_query_error_count{application="test",target="fubar"} 1
@@ -140,7 +139,7 @@ func TestServer_WithVariable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodPost, "http://localhost/variable", io.NopCloser(bytes.NewBuffer([]byte(tt.request))))
+			req, _ := http.NewRequest(http.MethodPost, "http://localhost/variable", io.NopCloser(strings.NewReader(tt.request)))
 			h.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatusCode, w.Code)

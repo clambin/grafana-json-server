@@ -1,6 +1,9 @@
 package grafana_json_server
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"time"
+)
 
 var _ prometheus.Collector = &prometheusMetrics{}
 
@@ -28,12 +31,19 @@ func createPrometheusMetrics(namespace, subsystem, application string) *promethe
 	}
 }
 
-func (p prometheusMetrics) Describe(descs chan<- *prometheus.Desc) {
-	p.duration.Describe(descs)
-	p.errors.Describe(descs)
+func (m prometheusMetrics) measure(target string, duration time.Duration, err error) {
+	if err != nil {
+		m.errors.WithLabelValues(target).Add(1)
+	}
+	m.duration.WithLabelValues(target).Observe(duration.Seconds())
 }
 
-func (p prometheusMetrics) Collect(metrics chan<- prometheus.Metric) {
-	p.duration.Collect(metrics)
-	p.errors.Collect(metrics)
+func (m prometheusMetrics) Describe(descs chan<- *prometheus.Desc) {
+	m.duration.Describe(descs)
+	m.errors.Describe(descs)
+}
+
+func (m prometheusMetrics) Collect(metrics chan<- prometheus.Metric) {
+	m.duration.Collect(metrics)
+	m.errors.Collect(metrics)
 }

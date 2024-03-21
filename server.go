@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
@@ -127,28 +128,16 @@ func (s Server) query(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest) (QueryResponse, error) {
-	datasource, ok := s.metricConfigs[target]
-	if !ok {
-		if s.prometheusMetrics != nil {
-			s.prometheusMetrics.errors.WithLabelValues(target).Add(1)
-		}
-		return nil, fmt.Errorf("invalid query target: %s", target)
-	}
+func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest) (resp QueryResponse, err error) {
+	start := time.Now()
 
-	var timer *prometheus.Timer
+	if datasource, ok := s.metricConfigs[target]; ok {
+		resp, err = datasource.Handler.Query(ctx, target, req)
+	} else {
+		err = fmt.Errorf("invalid target: %s", target)
+	}
 	if s.prometheusMetrics != nil {
-		timer = prometheus.NewTimer(s.prometheusMetrics.duration.WithLabelValues(target))
-	}
-
-	resp, err := datasource.Handler.Query(ctx, target, req)
-
-	if timer != nil {
-		timer.ObserveDuration()
-	}
-
-	if s.prometheusMetrics != nil && err != nil {
-		s.prometheusMetrics.errors.WithLabelValues(target).Add(1)
+		s.prometheusMetrics.measure(target, time.Since(start), err)
 	}
 	return resp, err
 }

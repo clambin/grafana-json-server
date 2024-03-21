@@ -5,15 +5,27 @@ import (
 	"time"
 )
 
-var _ prometheus.Collector = &prometheusMetrics{}
+type PrometheusQueryMetrics interface {
+	Measure(target string, duration time.Duration, err error)
+	prometheus.Collector
+}
 
-type prometheusMetrics struct {
+var _ PrometheusQueryMetrics = &defaultPrometheusQueryMetrics{}
+
+type defaultPrometheusQueryMetrics struct {
 	duration *prometheus.SummaryVec
 	errors   *prometheus.CounterVec
 }
 
-func createPrometheusMetrics(namespace, subsystem, application string) *prometheusMetrics {
-	return &prometheusMetrics{
+// NewDefaultPrometheusQueryMetrics returns the default PrometheusQueryMetrics implementation. It created two Prometheus metrics:
+//   - json_query_duration_seconds records the duration of each query
+//   - json_query_error_count counts the total number of errors executing a query
+//
+// If namespace and/or subsystem are not blank, they are prepended to the metric name.
+// Application is added as a label "application".
+// The query target is added as a label "target".
+func NewDefaultPrometheusQueryMetrics(namespace, subsystem, application string) PrometheusQueryMetrics {
+	return defaultPrometheusQueryMetrics{
 		duration: prometheus.NewSummaryVec(prometheus.SummaryOpts{
 			Namespace:   namespace,
 			Subsystem:   subsystem,
@@ -31,19 +43,19 @@ func createPrometheusMetrics(namespace, subsystem, application string) *promethe
 	}
 }
 
-func (m prometheusMetrics) measure(target string, duration time.Duration, err error) {
+func (m defaultPrometheusQueryMetrics) Measure(target string, duration time.Duration, err error) {
 	if err != nil {
 		m.errors.WithLabelValues(target).Add(1)
 	}
 	m.duration.WithLabelValues(target).Observe(duration.Seconds())
 }
 
-func (m prometheusMetrics) Describe(descs chan<- *prometheus.Desc) {
+func (m defaultPrometheusQueryMetrics) Describe(descs chan<- *prometheus.Desc) {
 	m.duration.Describe(descs)
 	m.errors.Describe(descs)
 }
 
-func (m prometheusMetrics) Collect(metrics chan<- prometheus.Metric) {
+func (m defaultPrometheusQueryMetrics) Collect(metrics chan<- prometheus.Metric) {
 	m.duration.Collect(metrics)
 	m.errors.Collect(metrics)
 }

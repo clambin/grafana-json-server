@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/prometheus/client_golang/prometheus"
 	"log/slog"
 	"net/http"
 	"time"
@@ -17,7 +16,7 @@ type Server struct {
 	metricConfigs     map[string]metric
 	variables         map[string]VariableFunc
 	logger            *slog.Logger
-	prometheusMetrics *prometheusMetrics
+	prometheusMetrics PrometheusQueryMetrics
 	chi.Router
 }
 
@@ -30,10 +29,11 @@ type metric struct {
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := Server{
-		metricConfigs: make(map[string]metric),
-		variables:     make(map[string]VariableFunc),
-		Router:        chi.NewRouter(),
-		logger:        slog.Default(),
+		metricConfigs:     make(map[string]metric),
+		variables:         make(map[string]VariableFunc),
+		Router:            chi.NewRouter(),
+		prometheusMetrics: NewDefaultPrometheusQueryMetrics("", "", "grafana-json-server"),
+		logger:            slog.Default(),
 	}
 
 	s.Router.Use(chiMiddleware.Heartbeat("/"))
@@ -136,9 +136,7 @@ func (s Server) queryTarget(ctx context.Context, target string, req QueryRequest
 	} else {
 		err = fmt.Errorf("invalid target: %s", target)
 	}
-	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.measure(target, time.Since(start), err)
-	}
+	s.prometheusMetrics.Measure(target, time.Since(start), err)
 	return resp, err
 }
 
@@ -177,18 +175,4 @@ func parseRequest[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
 	}
 	return request, err
-}
-
-// Describe implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
-func (s Server) Describe(ch chan<- *prometheus.Desc) {
-	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.Describe(ch)
-	}
-}
-
-// Collect implements the prometheus.Collector interface. It describes the prometheus metrics, if present.
-func (s Server) Collect(ch chan<- prometheus.Metric) {
-	if s.prometheusMetrics != nil {
-		s.prometheusMetrics.Collect(ch)
-	}
 }

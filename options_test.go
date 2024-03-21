@@ -28,8 +28,9 @@ func TestWithHandlerFunc(t *testing.T) {
 }
 
 func TestWithPrometheusQueryMetrics(t *testing.T) {
-	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithPrometheusQueryMetrics("namespace", "subsystem", "test"),
+	metrics := grafanaJSONServer.NewDefaultPrometheusQueryMetrics("namespace", "subsystem", "test")
+	handler := grafanaJSONServer.NewServer(
+		grafanaJSONServer.WithPrometheusQueryMetrics(metrics),
 		grafanaJSONServer.WithHandler("foo", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
 			return grafanaJSONServer.TimeSeriesResponse{
 				Target: target,
@@ -45,17 +46,17 @@ func TestWithPrometheusQueryMetrics(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(strings.NewReader(`{ "targets": [ { "target": "foo" } ] }`)))
-	h.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	assert.Equal(t, 1, testutil.CollectAndCount(h))
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics))
 
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(strings.NewReader(`{ "targets": [ { "target": "missing" } ] }`)))
-	h.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	assert.NoError(t, testutil.CollectAndCompare(h, strings.NewReader(`
+	assert.NoError(t, testutil.CollectAndCompare(metrics, strings.NewReader(`
 # HELP namespace_subsystem_json_query_error_count Grafana JSON Data server count of failed requests
 # TYPE namespace_subsystem_json_query_error_count counter
 namespace_subsystem_json_query_error_count{application="test",target="missing"} 1
@@ -63,10 +64,10 @@ namespace_subsystem_json_query_error_count{application="test",target="missing"} 
 
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodPost, "http://localhost/query", io.NopCloser(strings.NewReader(`{ "targets": [ { "target": "fubar" } ] }`)))
-	h.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	assert.NoError(t, testutil.CollectAndCompare(h, strings.NewReader(`
+	assert.NoError(t, testutil.CollectAndCompare(metrics, strings.NewReader(`
 # HELP namespace_subsystem_json_query_error_count Grafana JSON Data server count of failed requests
 # TYPE namespace_subsystem_json_query_error_count counter
 namespace_subsystem_json_query_error_count{application="test",target="fubar"} 1

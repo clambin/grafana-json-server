@@ -38,19 +38,13 @@ func WithHTTPHandler(method, path string, handler http.Handler) Option {
 	}
 }
 
-// WithPrometheusQueryMetrics adds Prometheus metrics to the server's Queries. The metrics can then be collected
-// by registering the server with a Prometheus registry.
+// WithPrometheusQueryMetrics adds Prometheus metrics to the server's Queries. The caller must register the metrics
+// with the Prometheus registry.
 //
-// Calling WithPrometheusMetrics creates two Prometheus metrics:
-//   - json_query_duration_seconds records the duration of each query
-//   - json_query_error_count counts the total number of errors executing a query
-//
-// If namespace and/or subsystem are not blank, they are prepended to the metric name.
-// Application is added as a label "application".
-// The query target is added as a label "target".
-func WithPrometheusQueryMetrics(namespace, subsystem, application string) Option {
+// See [NewDefaultPrometheusQueryMetrics] for the default implementation of Prometheus metrics.
+func WithPrometheusQueryMetrics(metrics PrometheusQueryMetrics) Option {
 	return func(s *Server) {
-		s.prometheusMetrics = createPrometheusMetrics(namespace, subsystem, application)
+		s.prometheusMetrics = metrics
 	}
 }
 

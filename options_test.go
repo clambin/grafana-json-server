@@ -5,53 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/clambin/go-common/httpserver/middleware"
 	grafanaJSONServer "github.com/clambin/grafana-json-server"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestWithRequestLogger(t *testing.T) {
-	var buf bytes.Buffer
-	l := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug, ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-		// Remove time from the output for predictable test output.
-		if a.Key == slog.TimeKey {
-			return slog.Attr{}
-		}
-		return a
-	}}))
-	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithLogger(l),
-		grafanaJSONServer.WithRequestLogger(slog.LevelDebug, middleware.RequestLogFormatterFunc(func(r *http.Request, code int, _ time.Duration) []slog.Attr {
-			return []slog.Attr{
-				slog.String("path", r.URL.Path),
-				slog.String("method", r.Method),
-				slog.Int("code", code),
-			}
-		})),
-		grafanaJSONServer.WithHandler("foo", nil),
-	)
-
-	const metricsRequest = `{ "metric": "foo" }`
-	const metricResponse = `[{"value":"foo","payloads":null}]
-`
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "http://localhost/metrics", io.NopCloser(bytes.NewBuffer([]byte(metricsRequest))))
-	h.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, metricResponse, w.Body.String())
-	assert.Equal(t, `level=DEBUG msg="http request" path=/metrics method=POST code=200
-`, buf.String())
-}
 
 func TestWithHandlerFunc(t *testing.T) {
 	h := grafanaJSONServer.NewServer(grafanaJSONServer.WithHTTPHandler(http.MethodGet, "/extra", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

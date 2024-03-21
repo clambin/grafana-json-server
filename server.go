@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/clambin/go-common/httpserver/middleware"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,12 +13,10 @@ import (
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
 type Server struct {
-	metricConfigs       map[string]metric
-	variables           map[string]VariableFunc
-	logger              *slog.Logger
-	requestLogLevel     slog.Level
-	requestLogFormatter middleware.RequestLogFormatter
-	prometheusMetrics   *prometheusMetrics
+	metricConfigs     map[string]metric
+	variables         map[string]VariableFunc
+	logger            *slog.Logger
+	prometheusMetrics *prometheusMetrics
 	chi.Router
 }
 
@@ -32,12 +29,10 @@ type metric struct {
 // NewServer returns a new JSON API server, configured as per the provided Option items.
 func NewServer(options ...Option) *Server {
 	s := Server{
-		metricConfigs:       make(map[string]metric),
-		variables:           make(map[string]VariableFunc),
-		Router:              chi.NewRouter(),
-		logger:              slog.Default(),
-		requestLogLevel:     slog.LevelDebug,
-		requestLogFormatter: middleware.DefaultRequestLogFormatter,
+		metricConfigs: make(map[string]metric),
+		variables:     make(map[string]VariableFunc),
+		Router:        chi.NewRouter(),
+		logger:        slog.Default(),
 	}
 
 	s.Router.Use(chiMiddleware.Heartbeat("/"))
@@ -46,15 +41,12 @@ func NewServer(options ...Option) *Server {
 		option(&s)
 	}
 
-	s.Router.Group(func(r chi.Router) {
-		r.Use(middleware.RequestLogger(s.logger, s.requestLogLevel, s.requestLogFormatter))
-		r.Post("/metrics", s.metrics)
-		r.Post("/metric-payload-options", s.metricsPayloadOptions)
-		r.Post("/variable", s.variable)
-		r.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-		r.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-		r.Post("/query", s.query)
-	})
+	s.Router.Post("/metrics", s.metrics)
+	s.Router.Post("/metric-payload-options", s.metricsPayloadOptions)
+	s.Router.Post("/variable", s.variable)
+	s.Router.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+	s.Router.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+	s.Router.Post("/query", s.query)
 
 	return &s
 }

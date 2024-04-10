@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
@@ -112,8 +113,13 @@ func (s Server) query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	targetRefIDs := make(map[string][]QueryRequestTarget)
+	for _, target := range queryRequest.Targets {
+		targetRefIDs[target.RefID] = append(targetRefIDs[target.RefID], target)
+	}
 	responses := make([]QueryResponse, 0, len(queryRequest.Targets))
 	for _, t := range queryRequest.Targets {
+		queryRequest.Targets = targetRefIDs[t.RefID]
 		resp, err := s.queryTarget(r.Context(), t.Target, queryRequest)
 		if err != nil {
 			s.logger.Error("query failed", "err", err)

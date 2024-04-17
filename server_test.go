@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	grafanaJSONServer "github.com/clambin/grafana-json-server"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	grafanaJSONServer "github.com/clambin/grafana-json-server"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServer_Heartbeat(t *testing.T) {
@@ -181,6 +182,24 @@ func TestServer_WithQuery(t *testing.T) {
 				{Text: "value", Data: grafanaJSONServer.NumberColumn{1, 2, 3}},
 			}}, nil
 		})),
+		grafanaJSONServer.WithHandler("multiple-targets", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+			var responsesByTargetPayload map[string]int = map[string]int{
+				"first":  1,
+				"second": 2,
+			}
+			var payload struct {
+				TargetSeq string
+			}
+			if err := req.GetPayload(target, &payload); err != nil {
+				return nil, err
+			}
+			return grafanaJSONServer.TimeSeriesResponse{
+				Target: "multiple-targets",
+				DataPoints: []grafanaJSONServer.DataPoint{
+					{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: float64(responsesByTargetPayload[payload.TargetSeq])},
+				},
+			}, nil
+		})),
 	)
 
 	testCases := []struct {
@@ -194,6 +213,13 @@ func TestServer_WithQuery(t *testing.T) {
 			queryRequest:   `{ "targets": [ { "target": "foo" } ] }`,
 			wantStatusCode: http.StatusOK,
 			want: `[{"target":"foo","datapoints":[[10,1689379200000]]}]
+`,
+		},
+		{
+			name:           "timeseries",
+			queryRequest:   `{ "targets": [ { "target": "multiple-targets", "refId": "A", "payload": {"targetSeq": "first"} }, { "target": "multiple-targets", "refId": "B", "payload": {"targetSeq": "second"} }]}`,
+			wantStatusCode: http.StatusOK,
+			want: `[{"target":"multiple-targets","datapoints":[[1,1689379200000]]},{"target":"multiple-targets","datapoints":[[2,1689379200000]]}]
 `,
 		},
 		{

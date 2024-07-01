@@ -3,7 +3,7 @@ module github.com/clambin/grafana-json-server
 go 1.21
 
 require (
-	github.com/go-chi/chi/v5 v5.0.14
+	github.com/go-chi/chi/v5 v5.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.19.1
 	github.com/stretchr/testify v1.9.0

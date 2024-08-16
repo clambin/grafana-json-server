@@ -2,7 +2,7 @@ package grafana_json_server_test
 
 import (
 	"encoding/json"
-	grafanaJSONServer "github.com/clambin/grafana-json-server"
+	gjson "github.com/clambin/grafana-json-server"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -65,7 +65,7 @@ func TestVariableRequest_UnmarshalJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var v grafanaJSONServer.VariableRequest
+			var v gjson.VariableRequest
 			err := json.Unmarshal(tt.input, &v)
 			tt.want.err(t, err)
 			assert.Equal(t, tt.want.payload, string(v.Payload))

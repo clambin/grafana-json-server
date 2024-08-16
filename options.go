@@ -34,7 +34,7 @@ func WithHandler(target string, handler Handler) Option {
 // WithHTTPHandler adds a http.Handler to its http router.
 func WithHTTPHandler(method, path string, handler http.Handler) Option {
 	return func(s *Server) {
-		s.Router.Method(method, path, handler)
+		s.Handler.(*http.ServeMux).Handle(method+" "+path, handler)
 	}
 }
 

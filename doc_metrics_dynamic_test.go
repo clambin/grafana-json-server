@@ -2,17 +2,17 @@ package grafana_json_server_test
 
 import (
 	"context"
-	grafanaJSONServer "github.com/clambin/grafana-json-server"
+	gjson "github.com/clambin/grafana-json-server"
 	"net/http"
 	"time"
 )
 
 func Example_metricOptionsDynamic() {
-	metric := grafanaJSONServer.Metric{
+	metric := gjson.Metric{
 		Label: "my advanced metric",
 		Value: "metric1",
-		Payloads: []grafanaJSONServer.MetricPayload{
-			{Label: "Option 1", Name: "option1", Type: "select", Width: 40, Options: []grafanaJSONServer.MetricPayloadOption{
+		Payloads: []gjson.MetricPayload{
+			{Label: "Option 1", Name: "option1", Type: "select", Width: 40, Options: []gjson.MetricPayloadOption{
 				{Label: "Mode 1", Value: "mode1"},
 				{Label: "Mode 2", Value: "mode2"},
 			}},
@@ -20,11 +20,11 @@ func Example_metricOptionsDynamic() {
 		},
 	}
 
-	s := grafanaJSONServer.NewServer(grafanaJSONServer.WithMetric(metric, grafanaJSONServer.HandlerFunc(metricOptionsDynamicQueryFunc), metricPayloadOptionsFunc))
+	s := gjson.NewServer(gjson.WithMetric(metric, gjson.HandlerFunc(metricOptionsDynamicQueryFunc), metricPayloadOptionsFunc))
 	_ = http.ListenAndServe(":8080", s)
 }
 
-func metricPayloadOptionsFunc(req grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
+func metricPayloadOptionsFunc(req gjson.MetricPayloadOptionsRequest) ([]gjson.MetricPayloadOption, error) {
 	var payload struct {
 		Option1 string
 		Option2 string
@@ -36,13 +36,13 @@ func metricPayloadOptionsFunc(req grafanaJSONServer.MetricPayloadOptionsRequest)
 
 	// req.Name tells us for metric payload the function was called
 
-	return []grafanaJSONServer.MetricPayloadOption{
+	return []gjson.MetricPayloadOption{
 		{Label: "Value 1", Value: "value1"},
 		{Label: "Value 2", Value: "value2"},
 	}, nil
 }
 
-func metricOptionsDynamicQueryFunc(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+func metricOptionsDynamicQueryFunc(_ context.Context, target string, req gjson.QueryRequest) (gjson.QueryResponse, error) {
 	var payload struct {
 		Option1 string
 		Option2 string
@@ -52,9 +52,9 @@ func metricOptionsDynamicQueryFunc(_ context.Context, target string, req grafana
 	}
 	// payload will now contain all selected options across all metric's payloads
 
-	return grafanaJSONServer.TimeSeriesResponse{
+	return gjson.TimeSeriesResponse{
 		Target: target,
-		DataPoints: []grafanaJSONServer.DataPoint{
+		DataPoints: []gjson.DataPoint{
 			{Timestamp: time.Now(), Value: 1.0},
 		},
 	}, nil

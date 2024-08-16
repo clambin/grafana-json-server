@@ -4,18 +4,17 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	gjson "github.com/clambin/grafana-json-server"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	grafanaJSONServer "github.com/clambin/grafana-json-server"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestServer_Heartbeat(t *testing.T) {
-	s := grafanaJSONServer.NewServer()
+	s := gjson.NewServer()
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost/", nil)
@@ -25,12 +24,12 @@ func TestServer_Heartbeat(t *testing.T) {
 }
 
 func TestServer_Metrics(t *testing.T) {
-	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "foo"},
+	h := gjson.NewServer(
+		gjson.WithMetric(
+			gjson.Metric{Value: "foo"},
 			nil,
-			func(_ grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
-				return []grafanaJSONServer.MetricPayloadOption{
+			func(_ gjson.MetricPayloadOptionsRequest) ([]gjson.MetricPayloadOption, error) {
+				return []gjson.MetricPayloadOption{
 					{Label: "Foo", Value: "foo"},
 					{Label: "Bar", Value: "bar"},
 				}, nil
@@ -81,26 +80,26 @@ func TestServer_Metrics(t *testing.T) {
 }
 
 func TestServer_MetricPayloadOptions(t *testing.T) {
-	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "foo"},
+	h := gjson.NewServer(
+		gjson.WithMetric(
+			gjson.Metric{Value: "foo"},
 			nil,
-			func(_ grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
-				return []grafanaJSONServer.MetricPayloadOption{
+			func(_ gjson.MetricPayloadOptionsRequest) ([]gjson.MetricPayloadOption, error) {
+				return []gjson.MetricPayloadOption{
 					{Label: "Foo", Value: "foo"},
 					{Label: "Bar", Value: "bar"},
 				}, nil
 			},
 		),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "fubar"},
+		gjson.WithMetric(
+			gjson.Metric{Value: "fubar"},
 			nil,
-			func(_ grafanaJSONServer.MetricPayloadOptionsRequest) ([]grafanaJSONServer.MetricPayloadOption, error) {
+			func(_ gjson.MetricPayloadOptionsRequest) ([]gjson.MetricPayloadOption, error) {
 				return nil, errors.New("failing")
 			},
 		),
-		grafanaJSONServer.WithMetric(
-			grafanaJSONServer.Metric{Value: "fubar2"},
+		gjson.WithMetric(
+			gjson.Metric{Value: "fubar2"},
 			nil,
 			nil,
 		),
@@ -158,31 +157,31 @@ func TestServer_MetricPayloadOptions(t *testing.T) {
 }
 
 func TestServer_WithQuery(t *testing.T) {
-	h := grafanaJSONServer.NewServer(
-		grafanaJSONServer.WithHandler("foo", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-			return grafanaJSONServer.TimeSeriesResponse{
+	h := gjson.NewServer(
+		gjson.WithHandler("foo", gjson.HandlerFunc(func(_ context.Context, target string, _ gjson.QueryRequest) (gjson.QueryResponse, error) {
+			return gjson.TimeSeriesResponse{
 				Target: "foo",
-				DataPoints: []grafanaJSONServer.DataPoint{
+				DataPoints: []gjson.DataPoint{
 					{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: 10},
 				},
 			}, nil
 		})),
-		grafanaJSONServer.WithHandler("bar", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-			return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
-				{Text: "time", Data: grafanaJSONServer.TimeColumn([]time.Time{time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC)})},
-				{Text: "value", Data: grafanaJSONServer.NumberColumn([]float64{10})},
+		gjson.WithHandler("bar", gjson.HandlerFunc(func(_ context.Context, target string, _ gjson.QueryRequest) (gjson.QueryResponse, error) {
+			return gjson.TableResponse{Columns: []gjson.Column{
+				{Text: "time", Data: gjson.TimeColumn([]time.Time{time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC)})},
+				{Text: "value", Data: gjson.NumberColumn([]float64{10})},
 			}}, nil
 		})),
-		grafanaJSONServer.WithHandler("fubar", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+		gjson.WithHandler("fubar", gjson.HandlerFunc(func(_ context.Context, target string, _ gjson.QueryRequest) (gjson.QueryResponse, error) {
 			return nil, errors.New("fubar")
 		})),
-		grafanaJSONServer.WithHandler("fubar2", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, _ grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
-			return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
-				{Text: "time", Data: grafanaJSONServer.TimeColumn{time.Now()}},
-				{Text: "value", Data: grafanaJSONServer.NumberColumn{1, 2, 3}},
+		gjson.WithHandler("fubar2", gjson.HandlerFunc(func(_ context.Context, target string, _ gjson.QueryRequest) (gjson.QueryResponse, error) {
+			return gjson.TableResponse{Columns: []gjson.Column{
+				{Text: "time", Data: gjson.TimeColumn{time.Now()}},
+				{Text: "value", Data: gjson.NumberColumn{1, 2, 3}},
 			}}, nil
 		})),
-		grafanaJSONServer.WithHandler("multiple-targets", grafanaJSONServer.HandlerFunc(func(_ context.Context, target string, req grafanaJSONServer.QueryRequest) (grafanaJSONServer.QueryResponse, error) {
+		gjson.WithHandler("multiple-targets", gjson.HandlerFunc(func(_ context.Context, target string, req gjson.QueryRequest) (gjson.QueryResponse, error) {
 			var responsesByTargetPayload map[string]int = map[string]int{
 				"first":  1,
 				"second": 2,
@@ -193,9 +192,9 @@ func TestServer_WithQuery(t *testing.T) {
 			if err := req.GetPayload(target, &payload); err != nil {
 				return nil, err
 			}
-			return grafanaJSONServer.TimeSeriesResponse{
+			return gjson.TimeSeriesResponse{
 				Target: "multiple-targets",
-				DataPoints: []grafanaJSONServer.DataPoint{
+				DataPoints: []gjson.DataPoint{
 					{Timestamp: time.Date(2023, time.July, 15, 0, 0, 0, 0, time.UTC), Value: float64(responsesByTargetPayload[payload.TargetSeq])},
 				},
 			}, nil
@@ -277,7 +276,7 @@ func TestServer_WithQuery(t *testing.T) {
 }
 
 func TestServer_Tags(t *testing.T) {
-	s := grafanaJSONServer.NewServer()
+	s := gjson.NewServer()
 
 	w := httptest.NewRecorder()
 	r, _ := http.NewRequest(http.MethodPost, "http://localhost/tag-keys", nil)

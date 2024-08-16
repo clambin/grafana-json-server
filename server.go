@@ -7,9 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/go-chi/chi/v5"
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 // The Server structure implements a JSON API server compatible with the JSON API Grafana datasource.
@@ -18,7 +15,7 @@ type Server struct {
 	variables         map[string]VariableFunc
 	logger            *slog.Logger
 	prometheusMetrics PrometheusQueryMetrics
-	chi.Router
+	http.Handler
 }
 
 type metric struct {
@@ -32,25 +29,36 @@ func NewServer(options ...Option) *Server {
 	s := Server{
 		metricConfigs:     make(map[string]metric),
 		variables:         make(map[string]VariableFunc),
-		Router:            chi.NewRouter(),
 		prometheusMetrics: NewDefaultPrometheusQueryMetrics("", "", "grafana-json-server"),
 		logger:            slog.Default(),
 	}
 
-	s.Router.Use(chiMiddleware.Heartbeat("/"))
+	h := http.NewServeMux()
+	s.Handler = h
 
 	for _, option := range options {
 		option(&s)
 	}
 
-	s.Router.Post("/metrics", s.metrics)
-	s.Router.Post("/metric-payload-options", s.metricsPayloadOptions)
-	s.Router.Post("/variable", s.variable)
-	s.Router.Post("/tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-	s.Router.Post("/tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
-	s.Router.Post("/query", s.query)
+	h.HandleFunc("POST /metrics", s.metrics)
+	h.HandleFunc("POST /metric-payload-options", s.metricsPayloadOptions)
+	h.HandleFunc("POST /variable", s.variable)
+	h.HandleFunc("POST /tag-keys", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+	h.HandleFunc("POST /tag-values", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotImplemented) })
+	h.HandleFunc("POST /query", s.query)
+	h.HandleFunc("/", ok)
 
 	return &s
+}
+
+func ok(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" || r.Method == "HEAD" {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("."))
+		return
+	}
+	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
 func (s Server) metrics(w http.ResponseWriter, r *http.Request) {

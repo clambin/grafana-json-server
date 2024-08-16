@@ -2,13 +2,13 @@ package grafana_json_server_test
 
 import (
 	"encoding/json"
-	grafanaJSONServer "github.com/clambin/grafana-json-server"
+	gjson "github.com/clambin/grafana-json-server"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestMetricPayloadOptionsRequest_GetPayload(t *testing.T) {
-	req := grafanaJSONServer.MetricPayloadOptionsRequest{
+	req := gjson.MetricPayloadOptionsRequest{
 		Metric:  "foo",
 		Name:    "Foo",
 		Payload: json.RawMessage(`{ "bar": "snafu" }`),

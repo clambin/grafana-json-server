@@ -7,8 +7,8 @@ a way of sending JSON-formatted data into Grafana dataframes.
 A metric is the source of data to be sent to Grafana.  In its simplest form, running a JSON API server for a metric
 requires creating a server for that metric and starting an HTTP listener:
 
-	s := grafana_json_server.NewServer(
-		grafana_json_server.WithHandler("metric1", query),
+	s := grafanaJSONServer.NewServer(
+		grafanaJSONServer.WithHandler("metric1", query),
 	)
 	_ = http.ListenAndServe(":8080", s)
 
@@ -17,13 +17,13 @@ will generate the data for the metric.
 
 To provide more configuration options for the metric, use WithMetric instead:
 
-	metric := grafana_json_server.Metric{
+	metric := grafanaJSONServer.Metric{
 		Label: "My first metric",
 		Value: "metric1",
 	}
 
-	s := grafana_json_server.NewServer(
-		grafana_json_server.WithMetric(metric, query, nil),
+	s := grafanaJSONServer.NewServer(
+		grafanaJSONServer.WithMetric(metric, query, nil),
 	)
 	_ = http.ListenAndServe(":8080", s)
 

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	grafanaJSONServer "github.com/clambin/grafana-json-server"
+	gjson "github.com/clambin/grafana-json-server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -31,15 +31,15 @@ func TestQueryRequest_Unmarshal(t *testing.T) {
 	]
 }`
 
-	var output grafanaJSONServer.QueryRequest
+	var output gjson.QueryRequest
 
 	err := json.Unmarshal([]byte(input), &output)
 	require.NoError(t, err)
 
-	expected := grafanaJSONServer.QueryRequest{
+	expected := gjson.QueryRequest{
 		Interval:      "1h",
 		MaxDataPoints: 100,
-		Targets: []grafanaJSONServer.QueryRequestTarget{
+		Targets: []gjson.QueryRequestTarget{
 			{
 				Payload: json.RawMessage(`{ "foo": "bar" }`),
 				Target:  "A",
@@ -51,7 +51,7 @@ func TestQueryRequest_Unmarshal(t *testing.T) {
 				Type:    "table",
 			},
 		},
-		Range: grafanaJSONServer.Range{
+		Range: gjson.Range{
 			From: time.Date(2023, time.August, 1, 0, 0, 0, 0, time.UTC),
 			To:   time.Date(2023, time.August, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -62,14 +62,14 @@ func TestQueryRequest_Unmarshal(t *testing.T) {
 func TestQueryResponse_Marshal(t *testing.T) {
 	tests := []struct {
 		name    string
-		payload grafanaJSONServer.QueryResponse
+		payload gjson.QueryResponse
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "timeseries",
-			payload: grafanaJSONServer.TimeSeriesResponse{
+			payload: gjson.TimeSeriesResponse{
 				Target: "A",
-				DataPoints: []grafanaJSONServer.DataPoint{
+				DataPoints: []gjson.DataPoint{
 					{Value: 100, Timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
 					{Value: 101, Timestamp: time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)},
 					{Value: 102, Timestamp: time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC)},
@@ -79,12 +79,12 @@ func TestQueryResponse_Marshal(t *testing.T) {
 		},
 		{
 			name: "table",
-			payload: grafanaJSONServer.TableResponse{
-				Columns: []grafanaJSONServer.Column{
-					{Text: "Time", Data: grafanaJSONServer.TimeColumn{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC)}},
-					{Text: "Label", Data: grafanaJSONServer.StringColumn{"foo", "bar"}},
-					{Text: "Series A", Data: grafanaJSONServer.NumberColumn{42, 43}},
-					{Text: "Series B", Data: grafanaJSONServer.NumberColumn{64.5, 100.0}},
+			payload: gjson.TableResponse{
+				Columns: []gjson.Column{
+					{Text: "Time", Data: gjson.TimeColumn{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC)}},
+					{Text: "Label", Data: gjson.StringColumn{"foo", "bar"}},
+					{Text: "Series A", Data: gjson.NumberColumn{42, 43}},
+					{Text: "Series B", Data: gjson.NumberColumn{64.5, 100.0}},
 				},
 			},
 			wantErr: assert.NoError,
@@ -96,12 +96,12 @@ func TestQueryResponse_Marshal(t *testing.T) {
 		},
 		{
 			name: "invalid",
-			payload: grafanaJSONServer.TableResponse{
-				Columns: []grafanaJSONServer.Column{
-					{Text: "Time", Data: grafanaJSONServer.TimeColumn{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC)}},
-					{Text: "Label", Data: grafanaJSONServer.StringColumn{"foo"}},
-					{Text: "Series A", Data: grafanaJSONServer.NumberColumn{42, 43}},
-					{Text: "Series B", Data: grafanaJSONServer.NumberColumn{64.5, 100.0, 105.0}},
+			payload: gjson.TableResponse{
+				Columns: []gjson.Column{
+					{Text: "Time", Data: gjson.TimeColumn{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 1, 1, 0, 1, 0, 0, time.UTC)}},
+					{Text: "Label", Data: gjson.StringColumn{"foo"}},
+					{Text: "Series A", Data: gjson.NumberColumn{42, 43}},
+					{Text: "Series B", Data: gjson.NumberColumn{64.5, 100.0, 105.0}},
 				},
 			},
 			wantErr: assert.Error,
@@ -152,21 +152,21 @@ func (r combinedResponse) MarshalJSON() ([]byte, error) {
 func makeCombinedQueryResponse() combinedResponse {
 	testDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	dataseries := []grafanaJSONServer.TimeSeriesResponse{{
+	dataseries := []gjson.TimeSeriesResponse{{
 		Target: "A",
-		DataPoints: []grafanaJSONServer.DataPoint{
+		DataPoints: []gjson.DataPoint{
 			{Value: 100, Timestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
 			{Value: 101, Timestamp: time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)},
 			{Value: 102, Timestamp: time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC)},
 		},
 	}}
 
-	tables := []grafanaJSONServer.TableResponse{{
-		Columns: []grafanaJSONServer.Column{
-			{Text: "Time", Data: grafanaJSONServer.TimeColumn{testDate, testDate}},
-			{Text: "Label", Data: grafanaJSONServer.StringColumn{"foo", "bar"}},
-			{Text: "Series A", Data: grafanaJSONServer.NumberColumn{42, 43}},
-			{Text: "Series B", Data: grafanaJSONServer.NumberColumn{64.5, 100.0}},
+	tables := []gjson.TableResponse{{
+		Columns: []gjson.Column{
+			{Text: "Time", Data: gjson.TimeColumn{testDate, testDate}},
+			{Text: "Label", Data: gjson.StringColumn{"foo", "bar"}},
+			{Text: "Series A", Data: gjson.NumberColumn{42, 43}},
+			{Text: "Series B", Data: gjson.NumberColumn{64.5, 100.0}},
 		},
 	}}
 
@@ -183,7 +183,7 @@ func makeCombinedQueryResponse() combinedResponse {
 }
 
 func BenchmarkDataPoint_MarshalJSON(b *testing.B) {
-	dataPoint := grafanaJSONServer.DataPoint{
+	dataPoint := gjson.DataPoint{
 		Timestamp: time.Date(2024, time.March, 8, 0, 0, 0, 0, time.UTC),
 		Value:     1024.1024,
 	}
@@ -205,16 +205,16 @@ func BenchmarkTimeSeriesResponse_MarshalJSON(b *testing.B) {
 	}
 }
 
-func buildTimeSeriesResponse(count int) grafanaJSONServer.TimeSeriesResponse {
-	var datapoints []grafanaJSONServer.DataPoint
+func buildTimeSeriesResponse(count int) gjson.TimeSeriesResponse {
+	var datapoints []gjson.DataPoint
 	timestamp := time.Date(2022, time.November, 27, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < count; i++ {
-		datapoints = append(datapoints, grafanaJSONServer.DataPoint{
+		datapoints = append(datapoints, gjson.DataPoint{
 			Timestamp: timestamp,
 			Value:     float64(i),
 		})
 	}
-	return grafanaJSONServer.TimeSeriesResponse{Target: "foo", DataPoints: datapoints}
+	return gjson.TimeSeriesResponse{Target: "foo", DataPoints: datapoints}
 }
 
 func BenchmarkTableResponse_MarshalJSON(b *testing.B) {
@@ -227,7 +227,7 @@ func BenchmarkTableResponse_MarshalJSON(b *testing.B) {
 	}
 }
 
-func buildTableResponse(count int) grafanaJSONServer.TableResponse {
+func buildTableResponse(count int) gjson.TableResponse {
 	var timestamps []time.Time
 	var values []float64
 
@@ -237,14 +237,14 @@ func buildTableResponse(count int) grafanaJSONServer.TableResponse {
 		values = append(values, 1.0)
 		timestamp = timestamp.Add(time.Minute)
 	}
-	return grafanaJSONServer.TableResponse{Columns: []grafanaJSONServer.Column{
-		{Text: "time", Data: grafanaJSONServer.TimeColumn(timestamps)},
-		{Text: "value", Data: grafanaJSONServer.NumberColumn(values)},
+	return gjson.TableResponse{Columns: []gjson.Column{
+		{Text: "time", Data: gjson.TimeColumn(timestamps)},
+		{Text: "value", Data: gjson.NumberColumn(values)},
 	}}
 }
 
 func TestQueryRequest_GetPayload(t *testing.T) {
-	req := grafanaJSONServer.QueryRequest{Targets: []grafanaJSONServer.QueryRequestTarget{
+	req := gjson.QueryRequest{Targets: []gjson.QueryRequestTarget{
 		{Target: "valid", Payload: json.RawMessage(`{ "bar": "snafu" }`)},
 		{Target: "empty", Payload: nil},
 	}}
@@ -288,7 +288,7 @@ func TestQueryRequest_GetPayload(t *testing.T) {
 }
 
 func TestQueryRequest_GetScopedVars(t *testing.T) {
-	req := grafanaJSONServer.QueryRequest{
+	req := gjson.QueryRequest{
 		ScopedVars: json.RawMessage(`
 {
 	"var1": { "selected": false, "text": "snafu", "value": "snafu" },
@@ -296,8 +296,8 @@ func TestQueryRequest_GetScopedVars(t *testing.T) {
 }`)}
 
 	var scopedVars struct {
-		Var1   grafanaJSONServer.ScopedVar[string]
-		Query0 grafanaJSONServer.ScopedVar[[]string]
+		Var1   gjson.ScopedVar[string]
+		Query0 gjson.ScopedVar[[]string]
 	}
 
 	assert.NoError(t, req.GetScopedVars(&scopedVars))
